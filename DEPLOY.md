@@ -4,6 +4,23 @@ Stack única com dois containers (`trilva_backend`, `trilva_frontend`), sem port
 (`expose` apenas) — o roteamento por domínio e o HTTPS ficam por conta do seu Nginx Proxy Manager
 (ou proxy equivalente) já rodando no servidor, mesmo padrão usado no projeto `pertodemim`.
 
+**As imagens são buildadas pelo GitHub Actions** (`.github/workflows/docker-build.yml`), não na
+máquina do servidor — o servidor só dá `pull` na imagem já pronta. Isso existe porque buildar
+localmente (`next build` + `nest build` dentro do Docker) é pesado demais pra uma máquina fraca.
+
+## 0. Como o build funciona
+
+A cada push em `main` que toque em `backend/**` ou `frontend-app/**` (ou disparo manual pela aba
+Actions do GitHub), o workflow builda as duas imagens e publica em `ghcr.io/<seu-usuario>/trilva-backend`
+e `trilva-frontend`. Acompanhe em `github.com/<seu-usuario>/AdvocaciaSistema/actions`.
+
+**Na primeira vez**, os pacotes ficam privados no GHCR por padrão. Pra o servidor conseguir dar
+`pull` sem precisar de login, torne-os públicos: no repositório no GitHub → aba **Packages** (ou
+`github.com/<seu-usuario>?tab=packages`) → abra `trilva-backend` e `trilva-frontend` → **Package
+settings** → **Change visibility** → **Public**. Se preferir manter privado, rode
+`docker login ghcr.io -u <usuario> -p <personal-access-token com escopo read:packages>` no servidor
+antes do primeiro `pull`.
+
 ## 1. Pré-requisitos no servidor
 
 - Docker + Docker Compose v2 (`docker compose version`)
@@ -15,24 +32,32 @@ Stack única com dois containers (`trilva_backend`, `trilva_frontend`), sem port
 cp .env.example .env
 ```
 
-Preencha o `.env` com os valores reais (`MONGO_URI`, `JWT_SECRET`, chaves OCI/DataJud etc.).
-Os domínios abaixo são os de teste informados — troque quando forem os definitivos:
+Preencha o `.env` com os valores reais (`MONGO_URI`, `JWT_SECRET`, chaves OCI/DataJud, `GHCR_OWNER`
+etc.). Os domínios abaixo são os de teste informados — troque quando forem os definitivos:
 
 ```
 NEXT_PUBLIC_API_URL=https://apitrilva.viniciusgnandt.com.br
 ```
 
-> `NEXT_PUBLIC_API_URL` é *inlined* no bundle do Next.js durante o build (não é lido em runtime).
-> Se o domínio da API mudar depois, é preciso rodar `docker compose up -d --build frontend` de novo —
-> só reiniciar o container não é suficiente.
+> `NEXT_PUBLIC_API_URL` é *inlined* no bundle do Next.js durante o build do GitHub Actions (não é
+> lido em runtime). Se o domínio da API mudar, atualize a variável de repositório
+> `NEXT_PUBLIC_API_URL` em Settings → Secrets and variables → Actions → Variables no GitHub (ou o
+> valor default no workflow) e dispare o build de novo — só trocar no `.env` do servidor não altera
+> nada, já que o bundle já foi gerado com o valor antigo.
 
 ## 3. Subir a stack
 
 ```bash
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
-Isso builda e sobe os dois containers na rede interna `trilva_net`, sem expor nada no host.
+(ou `npm run docker:deploy`, que faz os dois passos). Isso baixa as imagens já buildadas pelo CI e
+sobe os dois containers na rede interna `trilva_net`, sem expor nada no host — nada é compilado no
+servidor.
+
+> Precisa testar uma mudança local sem esperar o CI? `docker compose up -d --build` (ou
+> `npm run docker:up`) builda localmente como antes, ignorando as imagens do registry.
 
 ## 4. Conectar o Nginx Proxy Manager à rede da stack
 
@@ -75,7 +100,8 @@ do `backend/` — o script conecta direto no Atlas, não precisa estar dentro do
 ## Comandos úteis
 
 ```bash
-npm run docker:up     # build + up -d
+npm run docker:deploy # pull da imagem do GHCR + up -d (uso normal em produção)
+npm run docker:up     # build local + up -d (só quando precisar testar sem o CI)
 npm run docker:down   # para tudo
 npm run docker:logs   # segue os logs dos dois containers
 ```

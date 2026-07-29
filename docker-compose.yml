@@ -2,6 +2,11 @@ version: '3.8'
 
 services:
   backend:
+    # imagem buildada pelo GitHub Actions (.github/workflows/docker-build.yml) - `docker
+    # compose pull` baixa ela pronta; o `build:` so entra em acao se voce rodar
+    # explicitamente `docker compose up --build` (ex.: pra testar uma mudanca local sem
+    # esperar o CI).
+    image: ghcr.io/${GHCR_OWNER}/trilva-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -26,6 +31,7 @@ services:
       - trilva_net
 
   frontend:
+    image: ghcr.io/${GHCR_OWNER}/trilva-frontend:latest
     build:
       context: ./frontend-app
       dockerfile: Dockerfile

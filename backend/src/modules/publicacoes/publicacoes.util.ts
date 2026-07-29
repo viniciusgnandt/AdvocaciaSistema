@@ -14,8 +14,10 @@ export function hashDedupe(fonte: string, numeroProcesso: string, dataDisponibil
   return createHash('sha256').update(base).digest('hex');
 }
 
-const ROTULOS_ATIVO = ['RECLAMANTE', 'AUTOR', 'REQUERENTE', 'EXEQUENTE', 'AGRAVANTE', 'APELANTE'];
-const ROTULOS_PASSIVO = ['RECLAMADO', 'R[ÉE]U', 'REQUERIDO', 'EXECUTADO', 'AGRAVADO', 'APELADO'];
+// [OA] no fim: "Apelado"/"Apelada" etc. - a publicacao flexiona o rotulo pelo genero da
+// parte, "APELADO:" sozinho batia so a forma masculina e perdia toda "Apelada: Fulana".
+const ROTULOS_ATIVO = ['RECLAMANTE', 'AUTOR[A]?', 'REQUERENTE', 'EXEQUENTE', 'AGRAVANTE', 'APELANTE'];
+const ROTULOS_PASSIVO = ['RECLAMAD[OA]', 'R[ÉE]U?', 'REQUERID[OA]', 'EXECUTAD[OA]', 'AGRAVAD[OA]', 'APELAD[OA]'];
 // qualquer um desses rotulos - seja o nome da proxima parte ou um cabecalho de secao do
 // documento (INTIMAÇÃO, DESPACHO...) - marca o fim do nome da parte anterior, ja que o
 // teor da publicacao nao usa quebra de linha real entre os "blocos" do texto
@@ -35,7 +37,9 @@ const TODOS_ROTULOS = [
 ];
 
 function extrairParte(texto: string, rotulos: string[]): string | undefined {
-  const padraoInicio = new RegExp(`\\b(?:${rotulos.join('|')})S?:\\s*(.+)`, 'i');
+  // \s* antes dos dois-pontos: texto vindo de tabela HTML com as tags removidas deixa um
+  // espaco onde era "<td>AUTOR</td><td>:" (vira "AUTOR :", nao "AUTOR:").
+  const padraoInicio = new RegExp(`\\b(?:${rotulos.join('|')})S?\\s*:\\s*(.+)`, 'i');
   const match = texto.match(padraoInicio);
   if (!match) return undefined;
 
@@ -44,7 +48,10 @@ function extrairParte(texto: string, rotulos: string[]): string | undefined {
   // blocos varia entre documentos (1 ou 2+ espacos), entao aceita qualquer espaco,
   // com \b para nao cortar no meio de uma palavra do nome.
   const padraoFim = new RegExp(`\\s+\\b(?:${TODOS_ROTULOS.join('|')})S?\\b`, 'i');
-  const valor = match[1].split(padraoFim)[0].trim().slice(0, 150);
+  // " - " tambem encerra o nome quando o rotulo veio inline no meio do teor (ex.: acordao
+  // de apelacao "Apelada: Fulana (Justica Gratuita) - Apelação Cível Processo nº...") -
+  // sem cortar ali, o resto da ementa/metadados do acordao entrava junto no nome.
+  const valor = limparBorda(match[1].split(padraoFim)[0].split(/\s+-\s+/)[0].slice(0, 150));
   return valor.length > 0 ? valor : undefined;
 }
 
@@ -55,23 +62,102 @@ function extrairParte(texto: string, rotulos: string[]): string | undefined {
  * quando o processo tem algum grau de sigilo (familia, menores) - isso vem assim da
  * propria fonte oficial, nao e uma limitacao da extracao.
  */
+// razao social costuma trazer o sufixo societario depois de um " - " (ex.: "Allmax
+// Distribuidora ... - Eireli"), o que o split(' - ') separa como se fosse mais uma
+// parte distinta. Colando de volta no campo anterior quando o fragmento e' so o sufixo.
+const SUFIXO_SOCIETARIO = /^(Eireli|Ltda\.?|S\/?A\.?|ME|EPP|Cia\.?|Me\.?)$/i;
+
+function mesclarSufixosSocietarios(campos: string[]): string[] {
+  const resultado: string[] = [];
+  for (const campo of campos) {
+    if (SUFIXO_SOCIETARIO.test(campo.trim()) && resultado.length > 0) {
+      resultado[resultado.length - 1] = `${resultado[resultado.length - 1]} - ${campo.trim()}`;
+    } else {
+      resultado.push(campo);
+    }
+  }
+  return resultado;
+}
+
+/** Remove traco/ponto-e-virgula residual de borda (sobra de quando o proximo campo do
+ * split virou lixo/instrucao e foi descartado, mas o separador ficou grudado no nome). */
+function limparBorda(nome: string): string {
+  return nome.trim().replace(/[\s;-]+$/, '').trim();
+}
+
+/** Um "campo" e' nome de parte (nao teor) se for curto e nao comecar como prosa/decisao. */
+function pareceNomeDeParte(campo: string): boolean {
+  const limpo = campo.trim();
+  // limite generoso o suficiente pra razao social composta (ex.: "Fulano Distribuidora
+  // de Materiais Ltda"), mas ainda curto o bastante pra nao aceitar uma frase de teor.
+  if (limpo.length === 0 || limpo.length >= 90) return false;
+  // teor de decisao/despacho costuma comecar assim mesmo quando curto no primeiro campo
+  // apos a lista de partes (ex.: "Fls. Retro:", "Vistos.", "Ante o exposto")
+  if (/^(fls\.?|vistos\b|ante o exposto|certifico|trata-se|cuida-se)/i.test(limpo)) return false;
+  // teor entre aspas (ex.: `" fls. 118/119 - Ciência. "`) ou lista numerada (ex.: "1-
+  // apresentar...") tambem sao inicio de teor, nao nome - sem isso um " - " dentro do
+  // proprio teor confundia o fallback de 2 campos (ativa/passiva sem separador vazio).
+  // \d+- (sem espaco) e' marcador de lista; nao barra nomes que comecam com numero
+  // seguido de espaco, tipo razao social "5 Cometas Cargas e Logistica Ltda.".
+  if (/^["']|^\d+-/.test(limpo)) return false;
+  return true;
+}
+
+// "Processo <numero>" pode vir seguido de um ou mais parenteses de apensamento
+// (ex.: "(apensado ao processo X) (processo principal Y)") antes do primeiro " - " -
+// a regex antiga exigia o traco logo apos o numero e falhava silenciosamente nesses casos.
+const CABECALHO_PROCESSO = /^Processo\s+[\d./-]+\s*(?:\([^)]*\)\s*)*-\s*/i;
+
 function extrairPartesTJSP(texto: string): { parte_ativa?: string; parte_passiva?: string } {
-  if (!/^Processo\s+[\d./-]+\s+-\s+/i.test(texto)) return {};
+  const match = texto.match(CABECALHO_PROCESSO);
+  if (!match) return {};
 
-  const campos = texto.split(' - ');
-  if (campos.length < 6) return {};
+  const resto = mesclarSufixosSocietarios(texto.slice(match[0].length).split(' - '));
+  // resto[0] = classe, resto[1] = assunto, resto[2+] = partes/teor
+  if (resto.length < 3) return {};
 
-  const campoIntermediario = campos[4]?.trim();
-  if (campoIntermediario) return {}; // formato diferente do esperado - nao arrisca um palpite
+  // um ou mais nomes da parte ativa, depois um campo vazio (separador fixo do formato),
+  // depois um ou mais nomes da parte passiva, depois o teor da decisao. Antes so se
+  // assumia exatamente 1 nome de cada lado - com litisconsorcio (2+ autores ou reus) o
+  // separador vazio desloca e a extracao antiga desistia (ou misturava nome com teor).
+  let indiceSeparador = -1;
+  for (let i = 2; i < Math.min(resto.length, 2 + 6); i += 1) {
+    if (resto[i]?.trim() === '') {
+      indiceSeparador = i;
+      break;
+    }
+  }
+  if (indiceSeparador === -1) {
+    // formato nem sempre inclui o campo vazio de separacao (acontece mesmo com 1 nome
+    // de cada lado) - se os dois campos seguintes parecem nomes e o terceiro claramente
+    // nao parece (inicio do teor da decisao), assume 1 nome ativo + 1 passivo direto.
+    const [candidataAtiva, candidataPassiva, candidataTeor] = resto.slice(2, 5);
+    if (
+      candidataAtiva &&
+      candidataPassiva &&
+      pareceNomeDeParte(candidataAtiva) &&
+      pareceNomeDeParte(candidataPassiva) &&
+      candidataTeor !== undefined &&
+      !pareceNomeDeParte(candidataTeor)
+    ) {
+      return { parte_ativa: limparBorda(candidataAtiva), parte_passiva: limparBorda(candidataPassiva) };
+    }
+    return {};
+  }
 
-  const valido = (v?: string) => {
-    const limpo = v?.trim();
-    return limpo && limpo.length > 0 && limpo.length < 60 ? limpo : undefined;
-  };
+  const nomesAtiva = resto.slice(2, indiceSeparador).map((c) => c.trim()).filter(Boolean);
+  if (nomesAtiva.length === 0 || !nomesAtiva.every(pareceNomeDeParte)) return {};
+
+  const nomesPassiva: string[] = [];
+  for (let i = indiceSeparador + 1; i < resto.length; i += 1) {
+    if (!pareceNomeDeParte(resto[i])) break;
+    nomesPassiva.push(resto[i].trim());
+  }
+  if (nomesPassiva.length === 0) return {};
 
   return {
-    parte_ativa: valido(campos[3]),
-    parte_passiva: valido(campos[5]),
+    parte_ativa: limparBorda(nomesAtiva.join(' e ')),
+    parte_passiva: limparBorda(nomesPassiva.join(' e ')),
   };
 }
 
@@ -84,6 +170,19 @@ export function extrairPartes(texto: string | undefined): { parte_ativa?: string
     parte_passiva: extrairParte(texto, ROTULOS_PASSIVO),
   };
   if (porRotulo.parte_ativa || porRotulo.parte_passiva) return porRotulo;
+
+  // algumas publicacoes vem como tabela HTML ("<td>AUTOR</td><td>: Fulano</td>") em vez
+  // de texto puro - a tag entre o rotulo e o ":" faz a extracao por rotulo acima falhar
+  // mesmo o rotulo existindo. Tenta de novo so nesse caso, no texto sem as tags.
+  if (texto.includes('<')) {
+    const semTags = texto.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const porRotuloSemHtml = {
+      parte_ativa: extrairParte(semTags, ROTULOS_ATIVO),
+      parte_passiva: extrairParte(semTags, ROTULOS_PASSIVO),
+    };
+    if (porRotuloSemHtml.parte_ativa || porRotuloSemHtml.parte_passiva) return porRotuloSemHtml;
+  }
+
   return extrairPartesTJSP(texto);
 }
 

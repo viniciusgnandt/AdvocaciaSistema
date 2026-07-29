@@ -4,6 +4,7 @@
   "private": true,
   "description": "Trilva - plataforma de gestao para escritorios de advocacia",
   "scripts": {
+    "docker:deploy": "docker compose pull && docker compose up -d",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f"
