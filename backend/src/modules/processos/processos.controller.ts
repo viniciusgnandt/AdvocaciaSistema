@@ -1,0 +1,110 @@
+import { BadRequestException, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
+import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { Processo } from './schemas/processo.schema';
+import { DatajudConnectorService } from './connectors/datajud-connector.service';
+import { ProcessosService } from './processos.service';
+
+@ApiTags('processos')
+@ApiHeader({ name: 'x-tenant-id', required: true })
+@Controller('processos')
+export class ProcessosController {
+  constructor(
+    @InjectModel(Processo.name) private readonly processoModel: Model<Processo>,
+    private readonly datajud: DatajudConnectorService,
+    private readonly processosService: ProcessosService,
+  ) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Lista os processos ja enriquecidos com dados do DataJud, com filtros e ordenacao' })
+  async listar(
+    @Headers('x-tenant-id') tenantId: string,
+    @Query('tribunal') tribunal?: string,
+    @Query('classe') classe?: string,
+    @Query('status') status?: string,
+    @Query('busca') busca?: string,
+    @Query('ordenacao') ordenacao?: string,
+  ) {
+    const tenant = new Types.ObjectId(tenantId);
+    const filtro: Record<string, unknown> = { tenant_id: tenant };
+    if (tribunal) filtro.tribunal = tribunal;
+    if (classe) filtro.classe = classe;
+    if (busca) {
+      const regex = { $regex: escapeRegex(busca), $options: 'i' };
+      filtro.$or = [{ numero_cnj: regex }, { parte_ativa: regex }, { parte_passiva: regex }];
+    }
+
+    // "Ativo" tem dois submenus calculados a partir da audiencia mais recente que
+    // identificamos nas publicacoes - nao sao valores gravados no campo status.
+    const agora = new Date();
+    if (status === 'ativo_audiencia_agendada') {
+      filtro.status = 'ativo';
+      filtro.proxima_audiencia = { $gte: agora };
+    } else if (status === 'ativo_aguardando_sentenca') {
+      filtro.status = 'ativo';
+      filtro.proxima_audiencia = { $lt: agora };
+    } else if (status) {
+      filtro.status = status;
+    }
+
+    const ordens: Record<string, Record<string, 1 | -1>> = {
+      recentes: { updated_at: -1 },
+      numero: { numero_cnj: 1 },
+      nome: { parte_ativa: 1 },
+      audiencia: { proxima_audiencia: 1 },
+    };
+    const sort = ordens[ordenacao ?? 'recentes'] ?? ordens.recentes;
+
+    const [itens, tribunaisDisponiveis, classesDisponiveis] = await Promise.all([
+      this.processoModel.find(filtro).sort(sort).exec(),
+      this.processoModel.distinct('tribunal', { tenant_id: tenant }),
+      this.processoModel.distinct('classe', { tenant_id: tenant }),
+    ]);
+
+    return {
+      itens,
+      filtrosDisponiveis: {
+        tribunais: tribunaisDisponiveis.filter(Boolean).sort(),
+        classes: classesDisponiveis.filter(Boolean).sort(),
+      },
+    };
+  }
+
+  @Get(':numeroCnj')
+  @ApiOperation({ summary: 'Detalha um processo pelo numero CNJ' })
+  async detalhar(@Headers('x-tenant-id') tenantId: string, @Param('numeroCnj') numeroCnj: string) {
+    const processo = await this.processoModel.findOne({
+      tenant_id: new Types.ObjectId(tenantId),
+      numero_cnj: numeroCnj.replace(/\D/g, ''),
+    });
+    return processo ?? { erro: 'processo nao encontrado' };
+  }
+
+  @Post(':numeroCnj/enriquecer')
+  @ApiOperation({
+    summary:
+      'Forca busca sincrona no DataJud (uso interno/depuracao - o fluxo normal enriquece sozinho em background)',
+  })
+  async enriquecer(
+    @Headers('x-tenant-id') tenantId: string,
+    @Param('numeroCnj') numeroCnj: string,
+    @Query('tribunal') tribunal?: string,
+  ) {
+    if (!tribunal) {
+      throw new BadRequestException('Informe ?tribunal=<sigla> (ex.: TJSP) para localizar o indice correto no DataJud');
+    }
+    if (!this.datajud.habilitado) {
+      throw new BadRequestException(
+        'DATAJUD_API_KEY nao configurada no backend. Obtenha uma chave gratuita em https://datajud-wiki.cnj.jus.br/api-publica/acesso',
+      );
+    }
+
+    const processo = await this.processosService.enriquecer(new Types.ObjectId(tenantId), numeroCnj, tribunal);
+    return processo ?? { erro: 'processo nao encontrado no DataJud para esse tribunal/numero' };
+  }
+}
+
+function escapeRegex(texto: string): string {
+  return texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

@@ -1,0 +1,79 @@
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
+
+@Schema({ _id: false })
+export class MovimentoProcesso {
+  @Prop({ required: true })
+  data: Date;
+
+  @Prop({ required: true })
+  descricao: string;
+
+  @Prop()
+  codigo?: number;
+}
+export const MovimentoProcessoSchema = SchemaFactory.createForClass(MovimentoProcesso);
+
+@Schema({ timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } })
+export class Processo extends Document {
+  @Prop({ type: Types.ObjectId, required: true, index: true })
+  tenant_id: Types.ObjectId;
+
+  @Prop({ required: true })
+  numero_cnj: string;
+
+  @Prop()
+  tribunal?: string;
+
+  @Prop()
+  grau?: string;
+
+  @Prop()
+  classe?: string;
+
+  @Prop({ type: [String], default: [] })
+  assuntos: string[];
+
+  @Prop()
+  orgao_julgador?: string;
+
+  @Prop()
+  parte_ativa?: string; // reclamante/autor - extraido do teor das publicacoes (DataJud nao expoe partes)
+
+  @Prop()
+  parte_passiva?: string; // reclamado/reu
+
+  @Prop({ type: Types.ObjectId, index: true })
+  cliente_id?: Types.ObjectId; // vinculo automatico: nome do cliente bate com parte_ativa/parte_passiva
+
+  @Prop()
+  data_ajuizamento?: Date;
+
+  @Prop()
+  valor_causa?: number;
+
+  @Prop({ default: 'ativo' })
+  status: 'ativo' | 'suspenso' | 'encerrado' | 'arquivado';
+
+  @Prop({ type: [MovimentoProcessoSchema], default: [] })
+  movimentacoes: MovimentoProcesso[];
+
+  @Prop()
+  datajud_atualizado_em?: Date;
+
+  @Prop({ type: Object })
+  datajud_raw?: Record<string, unknown>;
+
+  // criado a partir de uma publicacao (DJEN), antes do DataJud indexar o processo -
+  // vira false automaticamente assim que o enriquecimento via DataJud tiver sucesso
+  @Prop({ default: false })
+  provisorio: boolean;
+
+  // data da audiencia mais recente identificada nas publicacoes do processo - alimenta
+  // os submenus "Audiência agendada" / "Aguardando sentença" do filtro de status
+  @Prop({ index: true })
+  proxima_audiencia?: Date;
+}
+
+export const ProcessoSchema = SchemaFactory.createForClass(Processo);
+ProcessoSchema.index({ tenant_id: 1, numero_cnj: 1 }, { unique: true });
