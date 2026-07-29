@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trilva_backend
+    restart: unless-stopped
+    expose:
+      - "3001"
+    environment:
+      - PORT=3001
+      - MONGO_URI=${MONGO_URI}
+      - JWT_SECRET=${JWT_SECRET}
+      - DEFAULT_TENANT_ID=${DEFAULT_TENANT_ID}
+      - DJEN_API_BASE_URL=${DJEN_API_BASE_URL}
+      - DATAJUD_BASE_URL=${DATAJUD_BASE_URL}
+      - DATAJUD_API_KEY=${DATAJUD_API_KEY}
+      - OCI_NAMESPACE=${OCI_NAMESPACE}
+      - OCI_BUCKET_NAME=${OCI_BUCKET_NAME}
+      - OCI_REGION=${OCI_REGION}
+      - OCI_ACCESS_KEY_ID=${OCI_ACCESS_KEY_ID}
+      - OCI_SECRET_ACCESS_KEY=${OCI_SECRET_ACCESS_KEY}
+    networks:
+      - trilva_net
+
+  frontend:
+    build:
+      context: ./frontend-app
+      dockerfile: Dockerfile
+      args:
+        # precisa ser build arg (nao so environment): NEXT_PUBLIC_* e inlined
+        # no bundle durante `next build`, trocar so em runtime nao teria efeito.
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+    container_name: trilva_frontend
+    restart: unless-stopped
+    expose:
+      - "3000"
+    depends_on:
+      - backend
+    networks:
+      - trilva_net
+
+networks:
+  trilva_net:
+    driver: bridge

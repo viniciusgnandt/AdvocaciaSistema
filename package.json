@@ -1,0 +1,11 @@
+{
+  "name": "trilva",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Trilva - plataforma de gestao para escritorios de advocacia",
+  "scripts": {
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
+  }
+}
