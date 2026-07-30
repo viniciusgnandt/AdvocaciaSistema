@@ -61,7 +61,7 @@ export class FinanceiroService {
 
   async listar(
     tenantId: Types.ObjectId,
-    filtros: { tipo?: string; status?: string; clienteId?: string; mes?: string },
+    filtros: { tipo?: string; status?: string; clienteId?: string; numeroProcesso?: string; mes?: string },
   ) {
     // transicao preguicosa: pendente vencido vira "atrasado" antes de responder,
     // no mesmo padrao usado em tarefas.controller.
@@ -74,6 +74,7 @@ export class FinanceiroService {
     if (filtros.tipo) filtro.tipo = filtros.tipo;
     if (filtros.status) filtro.status = filtros.status;
     if (filtros.clienteId) filtro.cliente_id = new Types.ObjectId(filtros.clienteId);
+    if (filtros.numeroProcesso) filtro.numero_processo = filtros.numeroProcesso;
     if (filtros.mes) {
       const [ano, mes] = filtros.mes.split('-').map(Number);
       const inicio = new Date(Date.UTC(ano, mes - 1, 1));

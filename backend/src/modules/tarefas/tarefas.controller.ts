@@ -17,11 +17,12 @@ export class TarefasController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Lista tarefas, com filtros por status/responsavel/atrasadas' })
+  @ApiOperation({ summary: 'Lista tarefas, com filtros por status/responsavel/processo/atrasadas' })
   async listar(
     @CurrentUser() usuario: UsuarioAutenticado,
     @Query('status') status?: string,
     @Query('responsavelId') responsavelId?: string,
+    @Query('numeroProcesso') numeroProcesso?: string,
     @Query('atrasadas') atrasadas?: string,
   ) {
     const tenant = new Types.ObjectId(usuario.tenantId);
@@ -35,6 +36,7 @@ export class TarefasController {
     const filtro: Record<string, unknown> = { tenant_id: tenant };
     if (status) filtro.status = status;
     if (responsavelId) filtro.responsavel_id = new Types.ObjectId(responsavelId);
+    if (numeroProcesso) filtro.numero_processo = numeroProcesso;
     if (atrasadas === 'true') {
       filtro.status = 'atrasada';
     }

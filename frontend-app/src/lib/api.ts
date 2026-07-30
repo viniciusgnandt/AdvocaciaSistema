@@ -84,6 +84,8 @@ export type Usuario = {
   perfil: PerfilUsuario;
   oab?: string;
   status: 'ativo' | 'inativo' | 'convidado';
+  grupo_id?: string;
+  time_id?: string;
 };
 
 export function listarUsuarios() {
@@ -94,12 +96,112 @@ export function convidarUsuario(dto: { nome: string; email: string; senha: strin
   return request<Usuario>('/usuarios', { method: 'POST', body: JSON.stringify(dto) });
 }
 
-export function atualizarUsuario(id: string, dto: Partial<Pick<Usuario, 'nome' | 'perfil' | 'oab' | 'status'>>) {
+export function atualizarUsuario(
+  id: string,
+  dto: Partial<Pick<Usuario, 'nome' | 'perfil' | 'oab' | 'status'>> & { grupo_id?: string | null; time_id?: string | null },
+) {
   return request<Usuario>(`/usuarios/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
+}
+
+export const CATALOGO_PERMISSOES = [
+  'financeiro.gerenciar',
+  'processos.excluir',
+  'clientes.excluir',
+  'tarefas.gerenciar_todas',
+  'equipe.gerenciar',
+  'escritorio.editar',
+  'terceirizacao.gerenciar',
+] as const;
+
+export type PermissaoChave = (typeof CATALOGO_PERMISSOES)[number];
+
+export const LABEL_PERMISSAO: Record<PermissaoChave, string> = {
+  'financeiro.gerenciar': 'Gerenciar Financeiro',
+  'processos.excluir': 'Excluir processos',
+  'clientes.excluir': 'Excluir clientes',
+  'tarefas.gerenciar_todas': 'Gerenciar tarefas de todos',
+  'equipe.gerenciar': 'Gerenciar equipe (convidar/editar/desativar)',
+  'escritorio.editar': 'Editar dados do escritório',
+  'terceirizacao.gerenciar': 'Gerenciar terceirização',
+};
+
+export type Grupo = {
+  _id: string;
+  nome: string;
+  permissoes: PermissaoChave[];
+};
+
+export function listarGrupos() {
+  return request<Grupo[]>('/grupos');
+}
+
+export function criarGrupo(dto: { nome: string; permissoes?: PermissaoChave[] }) {
+  return request<Grupo>('/grupos', { method: 'POST', body: JSON.stringify(dto) });
+}
+
+export function atualizarGrupo(id: string, dto: { nome?: string; permissoes?: PermissaoChave[] }) {
+  return request<Grupo>(`/grupos/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
+}
+
+export function excluirGrupo(id: string) {
+  return request<{ ok: boolean }>(`/grupos/${id}`, { method: 'DELETE' });
+}
+
+export type TimeTrabalho = {
+  _id: string;
+  nome: string;
+  cor?: string;
+  membros: string[];
+};
+
+export function listarTimes() {
+  return request<TimeTrabalho[]>('/times');
+}
+
+export function criarTime(dto: { nome: string; cor?: string; membros?: string[] }) {
+  return request<TimeTrabalho>('/times', { method: 'POST', body: JSON.stringify(dto) });
+}
+
+export function atualizarTime(id: string, dto: { nome?: string; cor?: string; membros?: string[] }) {
+  return request<TimeTrabalho>(`/times/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
+}
+
+export function excluirTime(id: string) {
+  return request<{ ok: boolean }>(`/times/${id}`, { method: 'DELETE' });
 }
 
 export function removerUsuario(id: string) {
   return request<Usuario>(`/usuarios/${id}`, { method: 'DELETE' });
+}
+
+export type TenantStatus = 'trial' | 'ativo' | 'suspenso' | 'cancelado';
+
+export type Tenant = {
+  _id: string;
+  nome_escritorio: string;
+  cnpj?: string;
+  status: TenantStatus;
+  trial_expires_at?: string;
+};
+
+export function buscarTenant() {
+  return request<Tenant>('/auth/tenant');
+}
+
+export function atualizarTenant(dto: { nome_escritorio?: string; cnpj?: string }) {
+  return request<Tenant>('/auth/tenant', { method: 'PATCH', body: JSON.stringify(dto) });
+}
+
+export function buscarPerfil() {
+  return request<Usuario>('/auth/perfil');
+}
+
+export function atualizarPerfil(dto: { nome?: string; oab?: string }) {
+  return request<Usuario>('/auth/perfil', { method: 'PATCH', body: JSON.stringify(dto) });
+}
+
+export function alterarSenha(senhaAtual: string, novaSenha: string) {
+  return request<{ ok: boolean }>('/auth/senha', { method: 'PATCH', body: JSON.stringify({ senhaAtual, novaSenha }) });
 }
 
 export type Classificacao =
@@ -336,6 +438,8 @@ export function excluirCliente(id: string) {
   return request<{ ok: boolean } | { erro: string }>(`/clientes/${id}`, { method: 'DELETE' });
 }
 
+export type StatusTarefa = 'pendente' | 'em_andamento' | 'concluida' | 'atrasada';
+
 export type Tarefa = {
   _id: string;
   titulo: string;
@@ -345,15 +449,18 @@ export type Tarefa = {
   responsavel_id?: string;
   data_vencimento: string;
   prioridade: 'baixa' | 'media' | 'alta' | 'critica';
-  status: 'pendente' | 'em_andamento' | 'concluida' | 'atrasada';
+  status: StatusTarefa;
   origem: 'manual' | 'prazo_publicacao' | 'audiencia_publicacao';
   concluida_em?: string;
 };
 
-export function listarTarefas(filtros: { status?: string; responsavelId?: string; atrasadas?: boolean } = {}) {
+export function listarTarefas(
+  filtros: { status?: string; responsavelId?: string; numeroProcesso?: string; atrasadas?: boolean } = {},
+) {
   const params = new URLSearchParams();
   if (filtros.status) params.set('status', filtros.status);
   if (filtros.responsavelId) params.set('responsavelId', filtros.responsavelId);
+  if (filtros.numeroProcesso) params.set('numeroProcesso', filtros.numeroProcesso);
   if (filtros.atrasadas) params.set('atrasadas', 'true');
   const query = params.toString();
   return request<Tarefa[]>(`/tarefas${query ? `?${query}` : ''}`);
@@ -376,7 +483,15 @@ export function criarTarefa(dto: {
 
 export function atualizarTarefa(
   id: string,
-  dto: { titulo?: string; descricao?: string; data_vencimento?: string; status?: string; prioridade?: string; responsavel_id?: string },
+  dto: {
+    titulo?: string;
+    descricao?: string;
+    data_vencimento?: string;
+    status?: string;
+    prioridade?: string;
+    responsavel_id?: string;
+    numero_processo?: string;
+  },
 ) {
   return request<Tarefa>(`/tarefas/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
 }
@@ -442,6 +557,42 @@ export function buscarPublicacao(id: string) {
   return request<Publicacao>(`/publicacoes/${id}`);
 }
 
+export type TipoMonitoramento = 'oab' | 'cpf' | 'cnpj' | 'processo';
+
+export type Monitoramento = {
+  _id: string;
+  tipo: TipoMonitoramento;
+  valor: string;
+  oab_uf?: string;
+  ativo: boolean;
+  ultima_execucao_em?: string;
+  ultima_execucao_status?: 'sucesso' | 'erro';
+  ultima_execucao_mensagem?: string;
+};
+
+export function listarMonitoramentos() {
+  return request<Monitoramento[]>('/publicacoes/monitoramentos');
+}
+
+export function criarMonitoramentoOab(numeroOab: string, ufOab: string) {
+  return request<Monitoramento>('/publicacoes/monitoramentos', {
+    method: 'POST',
+    body: JSON.stringify({ tipo: 'oab', valor: numeroOab, oab_uf: ufOab }),
+  });
+}
+
+export function atualizarMonitoramento(id: string, dto: { ativo?: boolean }) {
+  return request<Monitoramento>(`/publicacoes/monitoramentos/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
+}
+
+export function excluirMonitoramento(id: string) {
+  return request<{ ok: boolean }>(`/publicacoes/monitoramentos/${id}`, { method: 'DELETE' });
+}
+
+export function puxarMonitoramento(id: string) {
+  return request<unknown>(`/publicacoes/monitoramentos/${id}/pull`, { method: 'POST' });
+}
+
 export function buscarAgenda(dataInicio: string, dataFim: string) {
   const params = new URLSearchParams({ dataInicio, dataFim });
   return request<{ eventos: AgendaEvento[] }>(`/publicacoes/agenda?${params.toString()}`);
@@ -488,7 +639,9 @@ export type ResumoFinanceiro = {
   atrasados: number;
 };
 
-export function listarLancamentos(filtros: { tipo?: string; status?: string; clienteId?: string; mes?: string } = {}) {
+export function listarLancamentos(
+  filtros: { tipo?: string; status?: string; clienteId?: string; numeroProcesso?: string; mes?: string } = {},
+) {
   const params = new URLSearchParams();
   Object.entries(filtros).forEach(([chave, valor]) => {
     if (valor) params.set(chave, valor);

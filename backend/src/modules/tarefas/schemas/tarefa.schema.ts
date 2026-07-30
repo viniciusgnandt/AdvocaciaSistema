@@ -44,5 +44,12 @@ export class Tarefa extends Document {
 export const TarefaSchema = SchemaFactory.createForClass(Tarefa);
 TarefaSchema.index({ tenant_id: 1, data_vencimento: 1 });
 TarefaSchema.index({ tenant_id: 1, status: 1 });
-// evita duplicar tarefa ao clicar "criar tarefa" mais de uma vez na mesma publicacao
-TarefaSchema.index({ tenant_id: 1, publicacao_id: 1, origem: 1 }, { unique: true, sparse: true });
+// evita duplicar tarefa ao clicar "criar tarefa" mais de uma vez na mesma publicacao.
+// partialFilterExpression, nao sparse: um indice sparse composto so ignora o documento
+// se TODOS os campos do indice estiverem ausentes - como tenant_id e origem estao
+// sempre presentes, "sparse" sozinho nunca excluia ninguem e toda tarefa manual
+// (publicacao_id ausente) colidia como se fosse duplicata da primeira criada.
+TarefaSchema.index(
+  { tenant_id: 1, publicacao_id: 1, origem: 1 },
+  { unique: true, partialFilterExpression: { publicacao_id: { $exists: true } } },
+);

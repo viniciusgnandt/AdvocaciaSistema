@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Briefcase, Check, Landmark, Plus, X } from 'lucide-react';
-import { Topbar } from '@/components/layout/Topbar';
 import { StatCard } from '@/components/ui/StatCard';
 import {
   atualizarTerceirizacao,
@@ -32,7 +31,7 @@ function formatarMoeda(valor?: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-export default function TerceirizacoesPage() {
+export function TerceirizacaoAba() {
   const [itens, setItens] = useState<Terceirizacao[]>([]);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
@@ -64,115 +63,107 @@ export default function TerceirizacoesPage() {
   };
 
   const pendentes = itens.filter((i) => i.status === 'pendente').length;
-  const totalReceber = itens
-    .filter((i) => i.status !== 'cancelado')
-    .reduce((acc, i) => acc + (i.valor ?? 0), 0);
+  const totalReceber = itens.filter((i) => i.status !== 'cancelado').reduce((acc, i) => acc + (i.valor ?? 0), 0);
 
   return (
-    <>
-      <Topbar titulo="Terceirização" subtitulo="Correspondência, petições e audiências para outros advogados" />
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <StatCard icon={Briefcase} label="Pendentes" value={loading ? '—' : pendentes} tone="brand" />
+        <StatCard icon={Check} label="Total" value={loading ? '—' : itens.length} />
+        <StatCard icon={Briefcase} label="Valor combinado" value={loading ? '—' : (formatarMoeda(totalReceber) ?? 'R$ 0,00')} />
+      </div>
 
-      <main className="flex-1 px-6 py-6 space-y-5">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <StatCard icon={Briefcase} label="Pendentes" value={loading ? '—' : pendentes} tone="brand" />
-          <StatCard icon={Check} label="Total" value={loading ? '—' : itens.length} />
-          <StatCard icon={Briefcase} label="Valor combinado" value={loading ? '—' : (formatarMoeda(totalReceber) ?? 'R$ 0,00')} />
+      {erro && (
+        <div className="rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/50 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+          {erro}
         </div>
+      )}
 
-        {erro && (
-          <div className="rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/50 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-            {erro}
-          </div>
-        )}
+      <div className="flex items-center gap-2">
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-2.5 py-1.5 text-gray-700 dark:text-gray-300"
+        >
+          <option value="">Todos os status</option>
+          {Object.entries(STATUS_LABEL).map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={() => setModalAberto(true)}
+          className="ml-auto flex items-center gap-2 rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2.5 text-sm font-medium text-white transition"
+        >
+          <Plus size={14} /> Novo serviço
+        </button>
+      </div>
 
-        <div className="flex items-center gap-2">
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-2.5 py-1.5 text-gray-700 dark:text-gray-300"
-          >
-            <option value="">Todos os status</option>
-            {Object.entries(STATUS_LABEL).map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={() => setModalAberto(true)}
-            className="ml-auto flex items-center gap-2 rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2.5 text-sm font-medium text-white transition"
-          >
-            <Plus size={14} /> Novo serviço
-          </button>
+      {loading ? (
+        <p className="text-gray-400 text-sm">Carregando…</p>
+      ) : itens.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-800 py-16 text-center text-gray-400 text-sm">
+          Nenhum serviço prestado a terceiros por aqui.
         </div>
-
-        {loading ? (
-          <p className="text-gray-400 text-sm">Carregando…</p>
-        ) : itens.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-800 py-16 text-center text-gray-400 text-sm">
-            Nenhum serviço prestado a terceiros por aqui.
-          </div>
-        ) : (
-          <ul className="space-y-2">
-            {itens.map((item) => (
-              <li
-                key={item._id}
-                className="flex items-center gap-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4"
-              >
-                <button
-                  onClick={() => concluir(item)}
-                  disabled={item.status !== 'pendente'}
-                  className={cn(
-                    'w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors',
-                    item.status === 'concluido'
-                      ? 'bg-green-500 border-green-500 text-white'
-                      : item.status === 'cancelado'
-                        ? 'border-gray-200 dark:border-gray-800'
-                        : 'border-gray-300 dark:border-gray-600 hover:border-brand-500',
-                  )}
-                  title="Marcar como concluído"
-                >
-                  {item.status === 'concluido' && <Check size={12} />}
-                </button>
-
-                <div className="min-w-0 flex-1">
-                  <p className={cn('text-sm', item.status === 'concluido' ? 'text-gray-400 line-through' : 'text-gray-800 dark:text-gray-200')}>
-                    {TIPO_LABEL[item.tipo_servico]} para {item.contratante}
-                  </p>
-                  <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400 flex-wrap">
-                    <span>{new Date(item.data_compromisso).toLocaleDateString('pt-BR')}</span>
-                    <span>· {item.descricao}</span>
-                    {item.numero_processo && (
-                      <span className="flex items-center gap-1 font-mono">
-                        <Landmark size={10} /> {item.numero_processo}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {formatarMoeda(item.valor) && (
-                  <span className="text-sm font-semibold text-green-600 dark:text-green-400 shrink-0">
-                    {formatarMoeda(item.valor)}
-                  </span>
+      ) : (
+        <ul className="space-y-2">
+          {itens.map((item) => (
+            <li
+              key={item._id}
+              className="flex items-center gap-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4"
+            >
+              <button
+                onClick={() => concluir(item)}
+                disabled={item.status !== 'pendente'}
+                className={cn(
+                  'w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors',
+                  item.status === 'concluido'
+                    ? 'bg-green-500 border-green-500 text-white'
+                    : item.status === 'cancelado'
+                      ? 'border-gray-200 dark:border-gray-800'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-brand-500',
                 )}
+                title="Marcar como concluído"
+              >
+                {item.status === 'concluido' && <Check size={12} />}
+              </button>
 
-                <span
-                  className={cn(
-                    'text-xs px-2 py-0.5 rounded-full shrink-0',
-                    item.status === 'concluido'
-                      ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                      : item.status === 'cancelado'
-                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-400'
-                        : 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300',
+              <div className="min-w-0 flex-1">
+                <p className={cn('text-sm', item.status === 'concluido' ? 'text-gray-400 line-through' : 'text-gray-800 dark:text-gray-200')}>
+                  {TIPO_LABEL[item.tipo_servico]} para {item.contratante}
+                </p>
+                <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400 flex-wrap">
+                  <span>{new Date(item.data_compromisso).toLocaleDateString('pt-BR')}</span>
+                  <span>· {item.descricao}</span>
+                  {item.numero_processo && (
+                    <span className="flex items-center gap-1 font-mono">
+                      <Landmark size={10} /> {item.numero_processo}
+                    </span>
                   )}
-                >
-                  {STATUS_LABEL[item.status]}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </main>
+                </div>
+              </div>
+
+              {formatarMoeda(item.valor) && (
+                <span className="text-sm font-semibold text-green-600 dark:text-green-400 shrink-0">{formatarMoeda(item.valor)}</span>
+              )}
+
+              <span
+                className={cn(
+                  'text-xs px-2 py-0.5 rounded-full shrink-0',
+                  item.status === 'concluido'
+                    ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                    : item.status === 'cancelado'
+                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-400'
+                      : 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300',
+                )}
+              >
+                {STATUS_LABEL[item.status]}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {modalAberto && (
         <NovoServicoModal
@@ -183,7 +174,7 @@ export default function TerceirizacoesPage() {
           }}
         />
       )}
-    </>
+    </div>
   );
 }
 

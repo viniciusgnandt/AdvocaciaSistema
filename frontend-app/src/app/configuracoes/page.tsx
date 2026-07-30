@@ -1,0 +1,412 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import {
+  Building2,
+  Check,
+  Info,
+  KeyRound,
+  Moon,
+  Palette,
+  Sun,
+  UserCircle,
+  Users as UsersIcon,
+} from 'lucide-react';
+import { Topbar } from '@/components/layout/Topbar';
+import { EquipeAba } from '@/components/configuracoes/EquipeAba';
+import { OabsMonitoradasCartao } from '@/components/configuracoes/OabsMonitoradasCartao';
+import {
+  alterarSenha,
+  atualizarPerfil,
+  atualizarTenant,
+  buscarTenant,
+  salvarSessao,
+  tenantLogado,
+  usuarioLogado,
+  type PerfilUsuario,
+  type Tenant,
+} from '@/lib/api';
+import { cn } from '@/lib/cn';
+
+type SecaoConfig = 'conta' | 'escritorio' | 'equipe' | 'aparencia' | 'sobre';
+
+const LABEL_PERFIL: Record<PerfilUsuario, string> = { admin: 'Admin', advogado: 'Advogado(a)', assistente: 'Assistente' };
+
+export default function ConfiguracoesPage() {
+  const [secao, setSecao] = useState<SecaoConfig>('conta');
+  const usuario = usuarioLogado();
+  const ehAdmin = usuario?.perfil === 'admin';
+
+  const NAV: { id: SecaoConfig; icon: typeof UserCircle; label: string; adminOnly: boolean }[] = [
+    { id: 'conta', icon: UserCircle, label: 'Conta', adminOnly: false },
+    { id: 'escritorio', icon: Building2, label: 'Escritório', adminOnly: true },
+    { id: 'equipe', icon: UsersIcon, label: 'Equipe', adminOnly: true },
+    { id: 'aparencia', icon: Palette, label: 'Aparência', adminOnly: false },
+    { id: 'sobre', icon: Info, label: 'Sobre', adminOnly: false },
+  ];
+  const visiveis = NAV.filter((n) => !n.adminOnly || ehAdmin);
+
+  return (
+    <>
+      <Topbar titulo="Configurações" subtitulo="Conta, escritório e preferências" />
+
+      <main className="flex-1 px-6 py-6">
+        <div className="flex flex-col md:flex-row gap-6">
+          <div className="w-full md:w-48 shrink-0">
+            <nav className="space-y-0.5">
+              {visiveis.map(({ id, icon: Icon, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setSecao(id)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left',
+                    secao === id
+                      ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
+                  )}
+                >
+                  <Icon size={16} className="shrink-0" />
+                  {label}
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          <div className="flex-1 min-w-0 max-w-2xl">
+            {secao === 'conta' && <ContaSecao />}
+            {secao === 'escritorio' && ehAdmin && <EscritorioSecao />}
+            {secao === 'equipe' && ehAdmin && <EquipeAba />}
+            {secao === 'aparencia' && <AparenciaSecao />}
+            {secao === 'sobre' && <SobreSecao />}
+          </div>
+        </div>
+      </main>
+    </>
+  );
+}
+
+function Cartao({ titulo, subtitulo, children }: { titulo: string; subtitulo?: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
+      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{titulo}</p>
+      {subtitulo && <p className="text-xs text-gray-400 mt-0.5 mb-4">{subtitulo}</p>}
+      {!subtitulo && <div className="mb-4" />}
+      {children}
+    </div>
+  );
+}
+
+function ContaSecao() {
+  const sessao = usuarioLogado();
+  const [nome, setNome] = useState(sessao?.nome ?? '');
+  const [oab, setOab] = useState(sessao?.oab ?? '');
+  const [salvandoPerfil, setSalvandoPerfil] = useState(false);
+  const [okPerfil, setOkPerfil] = useState(false);
+  const [erroPerfil, setErroPerfil] = useState<string | null>(null);
+
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [novaSenha, setNovaSenha] = useState('');
+  const [salvandoSenha, setSalvandoSenha] = useState(false);
+  const [okSenha, setOkSenha] = useState(false);
+  const [erroSenha, setErroSenha] = useState<string | null>(null);
+
+  const salvarPerfil = async () => {
+    setSalvandoPerfil(true);
+    setErroPerfil(null);
+    setOkPerfil(false);
+    try {
+      await atualizarPerfil({ nome, oab: oab || undefined });
+      const tenant = tenantLogado();
+      const token = localStorage.getItem('trilva_token');
+      if (tenant && token) {
+        salvarSessao({ token, usuario: { ...(sessao!), nome, oab }, tenant });
+      }
+      setOkPerfil(true);
+      setTimeout(() => setOkPerfil(false), 2500);
+    } catch (err) {
+      setErroPerfil(err instanceof Error ? err.message : 'erro ao salvar perfil');
+    } finally {
+      setSalvandoPerfil(false);
+    }
+  };
+
+  const salvarSenha = async () => {
+    if (novaSenha.length < 8) {
+      setErroSenha('Nova senha deve ter pelo menos 8 caracteres.');
+      return;
+    }
+    setSalvandoSenha(true);
+    setErroSenha(null);
+    setOkSenha(false);
+    try {
+      await alterarSenha(senhaAtual, novaSenha);
+      setSenhaAtual('');
+      setNovaSenha('');
+      setOkSenha(true);
+      setTimeout(() => setOkSenha(false), 2500);
+    } catch (err) {
+      setErroSenha(err instanceof Error ? err.message : 'erro ao trocar senha');
+    } finally {
+      setSalvandoSenha(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <Cartao titulo="Perfil">
+        <div className="space-y-4">
+          <label className="block">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Nome</span>
+            <input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">E-mail</span>
+              <input
+                value={sessao?.email ?? ''}
+                disabled
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 px-3 py-2 text-gray-400"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">OAB</span>
+              <input
+                value={oab}
+                onChange={(e) => setOab(e.target.value)}
+                placeholder="123456/SP"
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+              />
+            </label>
+          </div>
+          <p className="text-xs text-gray-400">
+            Perfil: <span className="font-medium text-gray-600 dark:text-gray-300">{sessao ? LABEL_PERFIL[sessao.perfil] : ''}</span>
+          </p>
+
+          {erroPerfil && <p className="text-xs text-red-600 dark:text-red-400">{erroPerfil}</p>}
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={salvarPerfil}
+              disabled={salvandoPerfil}
+              className="rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2 text-sm font-medium text-white transition disabled:opacity-50"
+            >
+              {salvandoPerfil ? 'Salvando…' : 'Salvar'}
+            </button>
+            {okPerfil && (
+              <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                <Check size={13} /> Salvo
+              </span>
+            )}
+          </div>
+        </div>
+      </Cartao>
+
+      <Cartao titulo="Senha" subtitulo="Troque sua senha de acesso">
+        <div className="space-y-3">
+          <label className="block">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Senha atual</span>
+            <input
+              type="password"
+              value={senhaAtual}
+              onChange={(e) => setSenhaAtual(e.target.value)}
+              className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Nova senha (mín. 8 caracteres)</span>
+            <input
+              type="password"
+              minLength={8}
+              value={novaSenha}
+              onChange={(e) => setNovaSenha(e.target.value)}
+              className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+            />
+          </label>
+
+          {erroSenha && <p className="text-xs text-red-600 dark:text-red-400">{erroSenha}</p>}
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={salvarSenha}
+              disabled={salvandoSenha || !senhaAtual || !novaSenha}
+              className="flex items-center gap-2 rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2 text-sm font-medium text-white transition disabled:opacity-50"
+            >
+              <KeyRound size={14} /> {salvandoSenha ? 'Trocando…' : 'Trocar senha'}
+            </button>
+            {okSenha && (
+              <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                <Check size={13} /> Senha alterada
+              </span>
+            )}
+          </div>
+        </div>
+      </Cartao>
+
+      <OabsMonitoradasCartao />
+    </div>
+  );
+}
+
+const STATUS_LABEL: Record<string, { label: string; cor: string }> = {
+  trial: { label: 'Período de teste', cor: 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 border-brand-200 dark:border-brand-800' },
+  ativo: { label: 'Ativo', cor: 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800' },
+  suspenso: { label: 'Suspenso', cor: 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800' },
+  cancelado: { label: 'Cancelado', cor: 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800' },
+};
+
+function EscritorioSecao() {
+  const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [nomeEscritorio, setNomeEscritorio] = useState('');
+  const [cnpj, setCnpj] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [ok, setOk] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    buscarTenant()
+      .then((t) => {
+        setTenant(t);
+        setNomeEscritorio(t.nome_escritorio);
+        setCnpj(t.cnpj ?? '');
+      })
+      .catch((err) => setErro(err instanceof Error ? err.message : 'erro ao carregar escritório'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const salvar = async () => {
+    setSalvando(true);
+    setErro(null);
+    setOk(false);
+    try {
+      const atualizado = await atualizarTenant({ nome_escritorio: nomeEscritorio, cnpj: cnpj || undefined });
+      setTenant(atualizado);
+      localStorage.setItem(
+        'trilva_tenant',
+        JSON.stringify({ id: atualizado._id, nome_escritorio: atualizado.nome_escritorio, status: atualizado.status }),
+      );
+      setOk(true);
+      setTimeout(() => setOk(false), 2500);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'erro ao salvar escritório');
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  if (loading) return <p className="text-sm text-gray-400">Carregando…</p>;
+
+  const statusInfo = tenant ? STATUS_LABEL[tenant.status] : undefined;
+
+  return (
+    <div className="space-y-5">
+      <Cartao titulo="Dados do escritório">
+        <div className="space-y-4">
+          {statusInfo && (
+            <span className={cn('inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border', statusInfo.cor)}>
+              {statusInfo.label}
+            </span>
+          )}
+
+          {tenant?.status === 'trial' && tenant.trial_expires_at && (
+            <p className="text-xs text-gray-400">
+              Teste expira em {new Date(tenant.trial_expires_at).toLocaleDateString('pt-BR')}
+            </p>
+          )}
+
+          <label className="block">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Nome do escritório</span>
+            <input
+              value={nomeEscritorio}
+              onChange={(e) => setNomeEscritorio(e.target.value)}
+              className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">CNPJ (opcional)</span>
+            <input
+              value={cnpj}
+              onChange={(e) => setCnpj(e.target.value)}
+              placeholder="00.000.000/0001-00"
+              className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+            />
+          </label>
+
+          {erro && <p className="text-xs text-red-600 dark:text-red-400">{erro}</p>}
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={salvar}
+              disabled={salvando}
+              className="rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2 text-sm font-medium text-white transition disabled:opacity-50"
+            >
+              {salvando ? 'Salvando…' : 'Salvar'}
+            </button>
+            {ok && (
+              <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                <Check size={13} /> Salvo
+              </span>
+            )}
+          </div>
+        </div>
+      </Cartao>
+    </div>
+  );
+}
+
+function AparenciaSecao() {
+  const [dark, setDark] = useState(false);
+
+  useEffect(() => {
+    setDark(localStorage.getItem('trilva-theme') === 'dark');
+  }, []);
+
+  const escolher = (modo: 'light' | 'dark') => {
+    const isDark = modo === 'dark';
+    setDark(isDark);
+    document.documentElement.classList.toggle('dark', isDark);
+    localStorage.setItem('trilva-theme', modo);
+  };
+
+  return (
+    <Cartao titulo="Tema" subtitulo="Escolha entre claro e escuro">
+      <div className="grid grid-cols-2 gap-3 max-w-sm">
+        <button
+          onClick={() => escolher('light')}
+          className={cn(
+            'flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-colors',
+            !dark ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-gray-200 dark:border-gray-800',
+          )}
+        >
+          <Sun size={20} className={!dark ? 'text-brand-600' : 'text-gray-400'} />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Claro</span>
+        </button>
+        <button
+          onClick={() => escolher('dark')}
+          className={cn(
+            'flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-colors',
+            dark ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-gray-200 dark:border-gray-800',
+          )}
+        >
+          <Moon size={20} className={dark ? 'text-brand-600' : 'text-gray-400'} />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Escuro</span>
+        </button>
+      </div>
+    </Cartao>
+  );
+}
+
+function SobreSecao() {
+  return (
+    <Cartao titulo="Sobre o Trilva">
+      <div className="space-y-2 text-sm text-gray-500 dark:text-gray-400">
+        <p>Plataforma de gestão para escritórios de advocacia.</p>
+        <p className="text-xs text-gray-400">Versão 1.0.0</p>
+      </div>
+    </Cartao>
+  );
+}

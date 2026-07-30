@@ -31,4 +31,9 @@ export class AtualizarTarefaDto {
   @IsOptional()
   @IsString()
   responsavel_id?: string;
+
+  @ApiProperty({ required: false, description: 'Numero CNJ do processo vinculado, ou string vazia para desvincular' })
+  @IsOptional()
+  @IsString()
+  numero_processo?: string;
 }

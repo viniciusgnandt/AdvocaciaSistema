@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Param,
@@ -50,6 +51,31 @@ export class PublicacoesController {
   @ApiOperation({ summary: 'Lista os monitoramentos do escritorio' })
   async listarMonitoramentos(@Headers('x-tenant-id') tenantId: string) {
     return this.monitoramentoModel.find({ tenant_id: new Types.ObjectId(tenantId) }).exec();
+  }
+
+  @Patch('monitoramentos/:id')
+  @ApiOperation({ summary: 'Ativa/desativa um monitoramento (pausa sem perder o cadastro)' })
+  async atualizarMonitoramento(
+    @Headers('x-tenant-id') tenantId: string,
+    @Param('id') id: string,
+    @Body() dto: { ativo?: boolean },
+  ) {
+    const monitoramento = await this.monitoramentoModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(id), tenant_id: new Types.ObjectId(tenantId) },
+      { $set: dto },
+      { new: true },
+    );
+    return monitoramento ?? { erro: 'monitoramento nao encontrado' };
+  }
+
+  @Delete('monitoramentos/:id')
+  @ApiOperation({ summary: 'Remove um monitoramento (nao apaga publicacoes ja recebidas)' })
+  async excluirMonitoramento(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string) {
+    const resultado = await this.monitoramentoModel.deleteOne({
+      _id: new Types.ObjectId(id),
+      tenant_id: new Types.ObjectId(tenantId),
+    });
+    return resultado.deletedCount > 0 ? { ok: true } : { erro: 'monitoramento nao encontrado' };
   }
 
   @Post('monitoramentos/:id/pull')

@@ -1,9 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Check, ChevronLeft, ChevronRight, Plus, Trash2, TrendingDown, TrendingUp, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Briefcase, Check, ChevronLeft, ChevronRight, Plus, Trash2, TrendingDown, TrendingUp, Wallet, X } from 'lucide-react';
 import { Topbar } from '@/components/layout/Topbar';
 import { StatCard } from '@/components/ui/StatCard';
+import { TerceirizacaoAba } from '@/components/financeiro/TerceirizacaoAba';
 import {
   atualizarLancamento,
   criarLancamento,
@@ -44,11 +46,13 @@ function somarMes(mes: string, delta: number) {
 }
 
 export default function FinanceiroPage() {
+  const router = useRouter();
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [resumo, setResumo] = useState<ResumoFinanceiro | null>(null);
   const [tipo, setTipo] = useState('');
   const [status, setStatus] = useState('');
   const [mes, setMes] = useState(mesAtualISO());
+  const [aba, setAba] = useState<'lancamentos' | 'terceirizacao'>('lancamentos');
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -105,6 +109,31 @@ export default function FinanceiroPage() {
       <Topbar titulo="Financeiro" subtitulo="Contas a receber e a pagar do escritório" />
 
       <main className="flex-1 px-6 py-6 space-y-5">
+        <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-800 p-0.5 w-fit">
+          <button
+            onClick={() => setAba('lancamentos')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+              aba === 'lancamentos' ? 'bg-brand-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800',
+            )}
+          >
+            <Wallet size={13} /> Lançamentos
+          </button>
+          <button
+            onClick={() => setAba('terceirizacao')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+              aba === 'terceirizacao' ? 'bg-brand-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800',
+            )}
+          >
+            <Briefcase size={13} /> Terceirização
+          </button>
+        </div>
+
+        {aba === 'terceirizacao' ? (
+          <TerceirizacaoAba />
+        ) : (
+          <>
         <div className="flex items-center justify-center gap-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 py-2.5">
           <button
             onClick={() => setMes((m) => somarMes(m, -1))}
@@ -204,7 +233,17 @@ export default function FinanceiroPage() {
                   <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
                     <span>{new Date(l.data_vencimento).toLocaleDateString('pt-BR')}</span>
                     {l.categoria && <span>· {l.categoria}</span>}
-                    {l.numero_processo && <span className="font-mono">· {l.numero_processo}</span>}
+                    {l.numero_processo && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/processos?numero=${l.numero_processo}`);
+                        }}
+                        className="font-mono hover:text-brand-600 dark:hover:text-brand-400 hover:underline"
+                      >
+                        · {l.numero_processo}
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -250,6 +289,8 @@ export default function FinanceiroPage() {
             ))}
           </ul>
         )}
+          </>
+        )}
       </main>
 
       {modalAberto && (
@@ -271,6 +312,7 @@ function NovoLancamentoModal({ onFechar, onCriado }: { onFechar: () => void; onC
     descricao: '',
     valor: '',
     categoria: '',
+    numero_processo: '',
     data_vencimento: '',
     parcelado: false,
     parcelas: '2',
@@ -297,6 +339,7 @@ function NovoLancamentoModal({ onFechar, onCriado }: { onFechar: () => void; onC
         descricao: form.descricao,
         valor: valorNumero,
         categoria: form.categoria || undefined,
+        numero_processo: form.numero_processo || undefined,
         data_vencimento: new Date(form.data_vencimento).toISOString(),
         parcelas: numParcelas,
       });
@@ -374,15 +417,26 @@ function NovoLancamentoModal({ onFechar, onCriado }: { onFechar: () => void; onC
             </label>
           </div>
 
-          <label className="block">
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Categoria (opcional)</span>
-            <input
-              value={form.categoria}
-              onChange={(e) => setForm({ ...form, categoria: e.target.value })}
-              placeholder="Honorários, aluguel, salário…"
-              className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
-            />
-          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Categoria (opcional)</span>
+              <input
+                value={form.categoria}
+                onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+                placeholder="Honorários, aluguel…"
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Processo (opcional)</span>
+              <input
+                value={form.numero_processo}
+                onChange={(e) => setForm({ ...form, numero_processo: e.target.value })}
+                placeholder="Número CNJ"
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100 font-mono"
+              />
+            </label>
+          </div>
 
           <div className="flex items-center gap-2">
             <input

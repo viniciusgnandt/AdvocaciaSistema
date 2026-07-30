@@ -17,7 +17,8 @@
     "backfill:provisorios": "ts-node -r tsconfig-paths/register src/scripts/backfill-provisorios.script.ts",
     "backfill:audiencias": "ts-node -r tsconfig-paths/register src/scripts/backfill-audiencias.script.ts",
     "normalizar:classes": "ts-node -r tsconfig-paths/register src/scripts/normalizar-classes.script.ts",
-    "criar:usuario-tenant-existente": "ts-node -r tsconfig-paths/register src/scripts/criar-usuario-tenant-existente.script.ts"
+    "criar:usuario-tenant-existente": "ts-node -r tsconfig-paths/register src/scripts/criar-usuario-tenant-existente.script.ts",
+    "corrigir:entidades-html": "ts-node -r tsconfig-paths/register src/scripts/corrigir-entidades-html.script.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.629.0",

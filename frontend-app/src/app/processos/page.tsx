@@ -7,13 +7,16 @@ import {
   Building2,
   Calendar,
   CalendarClock,
+  CheckSquare,
   Clock,
   DollarSign,
   Gavel,
   Landmark,
+  Paperclip,
   Search,
   Tag,
   UserRound,
+  Wallet,
   X,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/Topbar';
@@ -29,6 +32,8 @@ import {
 import { cn } from '@/lib/cn';
 import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
 import { AnexoMovimentacao } from '@/components/processos/AnexoMovimentacao';
+import { FinanceiroProcesso } from '@/components/processos/FinanceiroProcesso';
+import { TarefasProcesso } from '@/components/processos/TarefasProcesso';
 
 function formatarMoeda(valor?: number | null) {
   if (valor === undefined || valor === null) return null;
@@ -159,7 +164,7 @@ function ProcessosPageConteudo() {
               ))}
             </ul>
 
-            {selecionado && <DetalheProcesso processo={selecionado} />}
+            {selecionado && <DetalheProcesso key={selecionado._id} processo={selecionado} />}
           </div>
         )}
       </main>
@@ -194,7 +199,17 @@ function formatarNumeroCnj(numero: string) {
   return `${numero.slice(0, 7)}-${numero.slice(7, 9)}.${numero.slice(9, 13)}.${numero.slice(13, 14)}.${numero.slice(14, 16)}.${numero.slice(16)}`;
 }
 
+type AbaProcesso = 'movimentacoes' | 'arquivos' | 'tarefas' | 'financeiro';
+
+const ABAS_PROCESSO: { id: AbaProcesso; label: string; icon: typeof Gavel }[] = [
+  { id: 'movimentacoes', label: 'Movimentações', icon: Gavel },
+  { id: 'arquivos', label: 'Arquivos', icon: Paperclip },
+  { id: 'tarefas', label: 'Tarefas', icon: CheckSquare },
+  { id: 'financeiro', label: 'Financeiro', icon: Wallet },
+];
+
 function DetalheProcesso({ processo }: { processo: Processo }) {
+  const [aba, setAba] = useState<AbaProcesso>('movimentacoes');
   return (
     <div className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 space-y-6">
       <div>
@@ -245,40 +260,64 @@ function DetalheProcesso({ processo }: { processo: Processo }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3 flex items-center gap-1">
-            <Gavel size={12} /> Movimentações ({processo.movimentacoes.length})
-          </p>
-          {processo.provisorio ? (
-            <PublicacoesRelacionadas numeroCnj={processo.numero_cnj} />
-          ) : processo.movimentacoes.length === 0 ? (
-            <p className="text-sm text-gray-400">Nenhuma movimentação registrada.</p>
-          ) : (
-            <ol className="relative border-l border-gray-200 dark:border-gray-800 ml-1.5 space-y-4">
-              {processo.movimentacoes.map((m, i) => (
-                <li key={i} className="ml-4">
-                  <span className="absolute -left-[5px] w-2.5 h-2.5 rounded-full bg-brand-500 mt-1.5" />
-                  <p className="text-sm text-gray-800 dark:text-gray-200">{m.descricao}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">
-                    {new Date(m.data).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
-                  </p>
-                  <AnexoMovimentacao numeroProcesso={processo.numero_cnj} movimentacaoChave={chaveMovimentacao(m)} />
-                </li>
-              ))}
-            </ol>
-          )}
-
-          {processo.datajud_atualizado_em && (
-            <p className="text-xs text-gray-300 dark:text-gray-600 mt-6">
-              Dados via DataJud (CNJ), atualizados em{' '}
-              {new Date(processo.datajud_atualizado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
-            </p>
-          )}
+      <div>
+        <div className="flex items-center gap-1 border-b border-gray-100 dark:border-gray-800 -mb-px">
+          {ABAS_PROCESSO.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setAba(id)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors',
+                aba === id
+                  ? 'border-brand-600 text-brand-600 dark:text-brand-400'
+                  : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300',
+              )}
+            >
+              <Icon size={14} />
+              {label}
+              {id === 'movimentacoes' && processo.movimentacoes.length > 0 && (
+                <span className="text-xs text-gray-300 dark:text-gray-600">({processo.movimentacoes.length})</span>
+              )}
+            </button>
+          ))}
         </div>
 
-        <div className="xl:sticky xl:top-6 xl:self-start">
-          <ArquivosProcesso escopo={{ numeroProcesso: processo.numero_cnj }} />
+        <div className="pt-5">
+          {aba === 'movimentacoes' && (
+            <div>
+              {processo.provisorio ? (
+                <PublicacoesRelacionadas numeroCnj={processo.numero_cnj} />
+              ) : processo.movimentacoes.length === 0 ? (
+                <p className="text-sm text-gray-400">Nenhuma movimentação registrada.</p>
+              ) : (
+                <ol className="relative border-l border-gray-200 dark:border-gray-800 ml-1.5 space-y-4">
+                  {processo.movimentacoes.map((m, i) => (
+                    <li key={i} className="ml-4">
+                      <span className="absolute -left-[5px] w-2.5 h-2.5 rounded-full bg-brand-500 mt-1.5" />
+                      <p className="text-sm text-gray-800 dark:text-gray-200">{m.descricao}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                        {new Date(m.data).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                      </p>
+                      <AnexoMovimentacao numeroProcesso={processo.numero_cnj} movimentacaoChave={chaveMovimentacao(m)} />
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              {processo.datajud_atualizado_em && (
+                <p className="text-xs text-gray-300 dark:text-gray-600 mt-6">
+                  Dados via DataJud (CNJ), atualizados em{' '}
+                  {new Date(processo.datajud_atualizado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                </p>
+              )}
+            </div>
+          )}
+
+          {aba === 'arquivos' && <ArquivosProcesso escopo={{ numeroProcesso: processo.numero_cnj }} />}
+
+          {aba === 'tarefas' && <TarefasProcesso numeroProcesso={processo.numero_cnj} />}
+
+          {aba === 'financeiro' && <FinanceiroProcesso numeroProcesso={processo.numero_cnj} />}
         </div>
       </div>
     </div>

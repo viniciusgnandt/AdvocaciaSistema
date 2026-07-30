@@ -18,15 +18,16 @@ export class FinanceiroController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Lista lancamentos, com filtros por tipo/status/cliente/mes (YYYY-MM)' })
+  @ApiOperation({ summary: 'Lista lancamentos, com filtros por tipo/status/cliente/processo/mes (YYYY-MM)' })
   async listar(
     @Headers('x-tenant-id') tenantId: string,
     @Query('tipo') tipo?: string,
     @Query('status') status?: string,
     @Query('clienteId') clienteId?: string,
+    @Query('numeroProcesso') numeroProcesso?: string,
     @Query('mes') mes?: string,
   ) {
-    return this.financeiroService.listar(new Types.ObjectId(tenantId), { tipo, status, clienteId, mes });
+    return this.financeiroService.listar(new Types.ObjectId(tenantId), { tipo, status, clienteId, numeroProcesso, mes });
   }
 
   @Get('resumo')

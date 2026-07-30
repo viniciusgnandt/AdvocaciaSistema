@@ -1,10 +1,11 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { Tenant } from './schemas/tenant.schema';
 import { Usuario } from './schemas/usuario.schema';
+import { Grupo } from './schemas/grupo.schema';
 import { RegistrarEscritorioDto } from './dto/registrar-escritorio.dto';
 import { LoginDto } from './dto/login.dto';
 import { UsuarioAutenticado } from './decorators/current-user.decorator';
@@ -16,6 +17,7 @@ export class AuthService {
   constructor(
     @InjectModel(Tenant.name) private readonly tenantModel: Model<Tenant>,
     @InjectModel(Usuario.name) private readonly usuarioModel: Model<Usuario>,
+    @InjectModel(Grupo.name) private readonly grupoModel: Model<Grupo>,
     private readonly jwt: JwtService,
   ) {}
 
@@ -66,11 +68,13 @@ export class AuthService {
   }
 
   private async emitirSessao(usuario: Usuario, tenant: Tenant) {
+    const grupo = usuario.grupo_id ? await this.grupoModel.findById(usuario.grupo_id) : null;
     const payload: UsuarioAutenticado = {
       sub: String(usuario._id),
       tenantId: String(usuario.tenant_id),
       perfil: usuario.perfil,
       email: usuario.email,
+      permissoes: grupo?.permissoes,
     };
     const token = await this.jwt.signAsync(payload);
 
@@ -89,6 +93,42 @@ export class AuthService {
         status: tenant.status,
       },
     };
+  }
+
+  async buscarTenant(tenantId: Types.ObjectId) {
+    const tenant = await this.tenantModel.findById(tenantId);
+    if (!tenant) throw new NotFoundException('tenant nao encontrado');
+    return tenant;
+  }
+
+  async atualizarTenant(tenantId: Types.ObjectId, dto: { nome_escritorio?: string; cnpj?: string }) {
+    const tenant = await this.tenantModel.findByIdAndUpdate(tenantId, { $set: dto }, { new: true });
+    if (!tenant) throw new NotFoundException('tenant nao encontrado');
+    return tenant;
+  }
+
+  async buscarUsuario(usuarioId: Types.ObjectId) {
+    const usuario = await this.usuarioModel.findById(usuarioId);
+    if (!usuario) throw new NotFoundException('usuario nao encontrado');
+    return usuario;
+  }
+
+  async atualizarPerfil(usuarioId: Types.ObjectId, dto: { nome?: string; oab?: string }) {
+    const usuario = await this.usuarioModel.findByIdAndUpdate(usuarioId, { $set: dto }, { new: true });
+    if (!usuario) throw new NotFoundException('usuario nao encontrado');
+    return usuario;
+  }
+
+  async alterarSenha(usuarioId: Types.ObjectId, senhaAtual: string, novaSenha: string) {
+    const usuario = await this.usuarioModel.findById(usuarioId).select('+senha_hash');
+    if (!usuario) throw new NotFoundException('usuario nao encontrado');
+
+    const senhaValida = await bcrypt.compare(senhaAtual, usuario.senha_hash);
+    if (!senhaValida) throw new BadRequestException('Senha atual incorreta');
+
+    usuario.senha_hash = await bcrypt.hash(novaSenha, SALT_ROUNDS);
+    await usuario.save();
+    return { ok: true };
   }
 
   async criarUsuarioParaTenant(tenantId: Types.ObjectId, dto: { nome: string; email: string; senha: string; perfil: string; oab?: string }) {

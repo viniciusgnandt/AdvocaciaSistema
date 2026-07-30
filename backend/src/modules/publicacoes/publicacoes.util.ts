@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 import { DjenComunicacaoItem } from './connectors/djen.types';
 import { classificarPublicacao } from './classificador.util';
-import { normalizarTituloCase } from '../../common/texto.util';
+import { decodificarEntidadesHtml, normalizarTituloCase } from '../../common/texto.util';
 
 /**
  * Hash de deduplicacao: a mesma publicacao pode chegar por mais de uma fonte
@@ -187,7 +187,10 @@ export function extrairPartes(texto: string | undefined): { parte_ativa?: string
 }
 
 export function mapDjenItemToPublicacao(item: DjenComunicacaoItem) {
-  const texto = item.texto ?? '';
+  // decodificar antes de tudo: classificacao/extracao de partes rodam em cima deste
+  // texto, entao um "Gon&ccedil;alves" nao decodificado tambem estragaria a extracao,
+  // nao so a exibicao.
+  const texto = decodificarEntidadesHtml(item.texto) ?? '';
   const dataDisponibilizacao = new Date(item.data_disponibilizacao);
   const tipoComunicacao = item.tipoComunicacao ?? item.tipo_comunicacao;
   const classificacao = classificarPublicacao(texto, tipoComunicacao, dataDisponibilizacao);

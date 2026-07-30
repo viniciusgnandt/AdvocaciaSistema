@@ -5,19 +5,18 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Bell,
-  Briefcase,
   Calendar,
   CheckSquare,
   Gavel,
   LayoutDashboard,
   LogOut,
   Scale,
+  Settings,
   Users,
-  UsersRound,
   Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { limparSessao, tenantLogado, usuarioLogado, type SessaoTenant, type SessaoUsuario } from '@/lib/api';
+import { buscarPerfil, buscarTenant, limparSessao, tenantLogado, usuarioLogado, type SessaoTenant, type SessaoUsuario } from '@/lib/api';
 
 const NAV = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', pronto: true },
@@ -26,9 +25,7 @@ const NAV = [
   { href: '/tarefas', icon: CheckSquare, label: 'Tarefas', pronto: true },
   { href: '/clientes', icon: Users, label: 'Clientes', pronto: true },
   { href: '/agenda', icon: Calendar, label: 'Agenda', pronto: true },
-  { href: '/usuarios', icon: UsersRound, label: 'Equipe', pronto: true },
   { href: '/financeiro', icon: Wallet, label: 'Financeiro', pronto: true },
-  { href: '/terceirizacoes', icon: Briefcase, label: 'Terceirização', pronto: true },
 ];
 
 const LABEL_PERFIL: Record<string, string> = { admin: 'Admin', advogado: 'Advogado(a)', assistente: 'Assistente' };
@@ -43,6 +40,29 @@ export function Sidebar() {
     setUsuario(usuarioLogado());
     setTenant(tenantLogado());
   }, [pathname]);
+
+  useEffect(() => {
+    // o cache local (localStorage) so e' escrito no login - se o nome do
+    // escritorio/usuario mudar depois (ex.: em Configuracoes, ou corrigido direto no
+    // banco), a sidebar ficava mostrando o valor antigo ate' relogar. Busca o valor
+    // atual da API uma vez ao montar e sincroniza o cache, sem exigir relogin.
+    buscarTenant()
+      .then((t) => {
+        const atualizado = { id: t._id, nome_escritorio: t.nome_escritorio, status: t.status };
+        setTenant(atualizado);
+        localStorage.setItem('trilva_tenant', JSON.stringify(atualizado));
+      })
+      .catch(() => undefined);
+
+    buscarPerfil()
+      .then((u) => {
+        const atualizado = { id: u._id, nome: u.nome, email: u.email, perfil: u.perfil, oab: u.oab };
+        setUsuario(atualizado);
+        localStorage.setItem('trilva_usuario', JSON.stringify(atualizado));
+      })
+      .catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const sair = () => {
     limparSessao();
@@ -106,7 +126,20 @@ export function Sidebar() {
         </div>
       </nav>
 
-      <div className="px-3 py-3 border-t border-gray-100 dark:border-gray-800">
+      <div className="px-3 pt-1 pb-2 border-t border-gray-100 dark:border-gray-800">
+        <Link
+          href="/configuracoes"
+          className={cn(
+            'flex items-center gap-3 px-3 py-2 mt-2 rounded-lg text-sm font-medium transition-colors',
+            pathname === '/configuracoes'
+              ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
+              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200',
+          )}
+        >
+          <Settings size={16} className="shrink-0" />
+          Configurações
+        </Link>
+
         <div className="flex items-center gap-3 px-3 py-2 rounded-lg">
           <div className="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
             {iniciais ?? '—'}

@@ -24,6 +24,15 @@ export class Usuario extends Document {
   @Prop()
   oab?: string;
 
+  // permissoes extras alem do que o perfil basico ja da (admin sempre tem tudo, grupo e'
+  // so' pra dar poderes extras a advogado/assistente)
+  @Prop({ type: Types.ObjectId, index: true })
+  grupo_id?: Types.ObjectId;
+
+  // "time" de trabalho (setor/equipe) - so' organizacional, nao afeta permissao
+  @Prop({ type: Types.ObjectId, index: true })
+  time_id?: Types.ObjectId;
+
   @Prop({ default: 'ativo' })
   status: StatusUsuario;
 

@@ -5,8 +5,8 @@ import { UsuariosService } from './usuarios.service';
 import { AuthService } from './auth.service';
 import { ConvidarUsuarioDto } from './dto/convidar-usuario.dto';
 import { CurrentUser, UsuarioAutenticado } from './decorators/current-user.decorator';
-import { Roles } from './decorators/roles.decorator';
-import { RolesGuard } from './guards/roles.guard';
+import { Permissao } from './decorators/permissao.decorator';
+import { PermissaoGuard } from './guards/permissao.guard';
 
 @ApiTags('usuarios')
 @Controller('usuarios')
@@ -23,29 +23,29 @@ export class UsuariosController {
   }
 
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  @ApiOperation({ summary: 'Convida (cria) um novo usuario no escritorio - apenas admin' })
+  @UseGuards(PermissaoGuard)
+  @Permissao('equipe.gerenciar')
+  @ApiOperation({ summary: 'Convida (cria) um novo usuario no escritorio - admin ou permissao equipe.gerenciar' })
   async convidar(@CurrentUser() usuario: UsuarioAutenticado, @Body() dto: ConvidarUsuarioDto) {
     return this.authService.criarUsuarioParaTenant(new Types.ObjectId(usuario.tenantId), dto);
   }
 
   @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  @ApiOperation({ summary: 'Atualiza nome/perfil/OAB/status de um usuario - apenas admin' })
+  @UseGuards(PermissaoGuard)
+  @Permissao('equipe.gerenciar')
+  @ApiOperation({ summary: 'Atualiza nome/perfil/OAB/status/grupo/time de um usuario - admin ou permissao equipe.gerenciar' })
   async atualizar(
     @CurrentUser() usuario: UsuarioAutenticado,
     @Param('id') id: string,
-    @Body() dto: { nome?: string; perfil?: string; oab?: string; status?: string },
+    @Body() dto: { nome?: string; perfil?: string; oab?: string; status?: string; grupo_id?: string | null; time_id?: string | null },
   ) {
     return this.usuariosService.atualizar(new Types.ObjectId(usuario.tenantId), new Types.ObjectId(id), dto);
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  @ApiOperation({ summary: 'Desativa um usuario (soft delete) - apenas admin' })
+  @UseGuards(PermissaoGuard)
+  @Permissao('equipe.gerenciar')
+  @ApiOperation({ summary: 'Desativa um usuario (soft delete) - admin ou permissao equipe.gerenciar' })
   async remover(@CurrentUser() usuario: UsuarioAutenticado, @Param('id') id: string) {
     return this.usuariosService.remover(new Types.ObjectId(usuario.tenantId), new Types.ObjectId(id));
   }
