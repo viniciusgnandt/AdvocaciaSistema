@@ -30,7 +30,7 @@ const NAV = [
 
 const LABEL_PERFIL: Record<string, string> = { admin: 'Admin', advogado: 'Advogado(a)', assistente: 'Assistente' };
 
-export function Sidebar() {
+export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose?: () => void } = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const [usuario, setUsuario] = useState<SessaoUsuario | null>(null);
@@ -76,8 +76,8 @@ export function Sidebar() {
     .join('')
     .toUpperCase();
 
-  return (
-    <aside className="hidden md:flex flex-col shrink-0 w-60 h-screen sticky top-0 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800">
+  const conteudo = (
+    <>
       <div className="px-5 py-5 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center shrink-0">
@@ -104,6 +104,7 @@ export function Sidebar() {
                 key={href}
                 href={pronto ? href : '#'}
                 aria-disabled={!pronto}
+                onClick={onClose}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                   ativo
@@ -129,6 +130,7 @@ export function Sidebar() {
       <div className="px-3 pt-1 pb-2 border-t border-gray-100 dark:border-gray-800">
         <Link
           href="/configuracoes"
+          onClick={onClose}
           className={cn(
             'flex items-center gap-3 px-3 py-2 mt-2 rounded-lg text-sm font-medium transition-colors',
             pathname === '/configuracoes'
@@ -160,6 +162,23 @@ export function Sidebar() {
           </button>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      <aside className="hidden md:flex flex-col shrink-0 w-60 h-screen sticky top-0 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800">
+        {conteudo}
+      </aside>
+
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+          <aside className="relative z-50 flex flex-col w-72 max-w-[80vw] h-full bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 safe-top">
+            {conteudo}
+          </aside>
+        </div>
+      )}
+    </>
   );
 }
