@@ -34,6 +34,8 @@ import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
 import { AnexoMovimentacao } from '@/components/processos/AnexoMovimentacao';
 import { FinanceiroProcesso } from '@/components/processos/FinanceiroProcesso';
 import { TarefasProcesso } from '@/components/processos/TarefasProcesso';
+import { BotaoExportar } from '@/components/ui/BotaoExportar';
+import { exportarExcel, exportarPdf } from '@/lib/exportar';
 
 function formatarMoeda(valor?: number | null) {
   if (valor === undefined || valor === null) return null;
@@ -107,6 +109,29 @@ function ProcessosPageConteudo() {
 
   const processoNaoEncontrado = !loading && numeroBuscado && !processos.some((p) => p.numero_cnj === numeroBuscado);
 
+  const exportarComoExcel = () => {
+    exportarExcel(
+      processos.map((p) => ({
+        'Nº CNJ': p.numero_cnj,
+        Tribunal: p.tribunal ?? '',
+        Classe: p.classe ?? '',
+        'Parte ativa': p.parte_ativa ?? '',
+        'Parte passiva': p.parte_passiva ?? '',
+        'Valor da causa': p.valor_causa ?? '',
+      })),
+      'processos',
+    );
+  };
+
+  const exportarComoPdf = () => {
+    exportarPdf(
+      'Processos',
+      ['Nº CNJ', 'Tribunal', 'Classe', 'Parte ativa', 'Parte passiva'],
+      processos.map((p) => [p.numero_cnj, p.tribunal ?? '', p.classe ?? '', p.parte_ativa ?? '', p.parte_passiva ?? '']),
+      'processos',
+    );
+  };
+
   return (
     <>
       <Topbar titulo="Processos" subtitulo="Classe, movimentações e timeline via DataJud (CNJ)" />
@@ -120,7 +145,12 @@ function ProcessosPageConteudo() {
 
         {processoNaoEncontrado && <ProcessoProvisorio numeroCnj={numeroBuscado!} />}
 
-        <FiltroProcessos filtros={filtros} onChange={setFiltros} tribunais={tribunais} classes={classes} />
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex-1 min-w-0">
+            <FiltroProcessos filtros={filtros} onChange={setFiltros} tribunais={tribunais} classes={classes} />
+          </div>
+          {processos.length > 0 && <BotaoExportar onExcel={exportarComoExcel} onPdf={exportarComoPdf} />}
+        </div>
 
         {loading ? (
           <p className="text-gray-400 text-sm">Carregando…</p>

@@ -5,12 +5,15 @@ import { AppShell } from '@/components/layout/AppShell';
 export const metadata: Metadata = {
   title: 'Trilva — Publicações',
   description: 'Monitoramento de publicações judiciais',
+  manifest: '/manifest.json',
+  icons: { icon: '/icon.svg', apple: '/icon.svg' },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: '#2563eb',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

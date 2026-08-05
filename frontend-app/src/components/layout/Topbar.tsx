@@ -1,7 +1,7 @@
 'use client';
 
-import { Search } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { BuscaGlobal } from './BuscaGlobal';
 
 export function Topbar({ titulo, subtitulo }: { titulo: string; subtitulo?: string }) {
   return (
@@ -12,13 +12,7 @@ export function Topbar({ titulo, subtitulo }: { titulo: string; subtitulo?: stri
       </div>
 
       <div className="ml-auto flex items-center gap-2">
-        <div className="hidden sm:flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60 px-3 py-1.5 text-sm text-gray-400 w-64">
-          <Search size={14} />
-          <span>Buscar processo, cliente…</span>
-          <kbd className="ml-auto text-[10px] px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 text-gray-400">
-            ⌘K
-          </kbd>
-        </div>
+        <BuscaGlobal />
         <ThemeToggle />
       </div>
     </header>

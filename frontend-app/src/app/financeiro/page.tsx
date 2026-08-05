@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Briefcase, Check, ChevronLeft, ChevronRight, Plus, Trash2, TrendingDown, TrendingUp, Wallet, X } from 'lucide-react';
 import { Topbar } from '@/components/layout/Topbar';
 import { StatCard } from '@/components/ui/StatCard';
+import { BotaoExportar } from '@/components/ui/BotaoExportar';
 import { TerceirizacaoAba } from '@/components/financeiro/TerceirizacaoAba';
+import { exportarExcel, exportarPdf } from '@/lib/exportar';
 import {
   atualizarLancamento,
   criarLancamento,
@@ -105,30 +107,66 @@ export default function FinanceiroPage() {
     }
   };
 
+  const exportarComoExcel = () => {
+    exportarExcel(
+      lancamentos.map((l) => ({
+        Tipo: l.tipo === 'receita' ? 'Receita' : 'Despesa',
+        Descrição: l.descricao,
+        Valor: l.valor,
+        Categoria: l.categoria ?? '',
+        Processo: l.numero_processo ?? '',
+        Vencimento: new Date(l.data_vencimento).toLocaleDateString('pt-BR'),
+        Status: STATUS_LABEL[l.status] ?? l.status,
+      })),
+      `financeiro-${mes}`,
+    );
+  };
+
+  const exportarComoPdf = () => {
+    exportarPdf(
+      `Financeiro — ${formatarMesLabel(mes)}`,
+      ['Tipo', 'Descrição', 'Valor', 'Vencimento', 'Status'],
+      lancamentos.map((l) => [
+        l.tipo === 'receita' ? 'Receita' : 'Despesa',
+        l.descricao,
+        formatarMoeda(l.valor),
+        new Date(l.data_vencimento).toLocaleDateString('pt-BR'),
+        STATUS_LABEL[l.status] ?? l.status,
+      ]),
+      `financeiro-${mes}`,
+    );
+  };
+
   return (
     <>
       <Topbar titulo="Financeiro" subtitulo="Contas a receber e a pagar do escritório" />
 
       <main className="flex-1 px-6 py-6 space-y-5">
-        <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-800 p-0.5 w-fit">
-          <button
-            onClick={() => setAba('lancamentos')}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-              aba === 'lancamentos' ? 'bg-brand-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800',
-            )}
-          >
-            <Wallet size={13} /> Lançamentos
-          </button>
-          <button
-            onClick={() => setAba('terceirizacao')}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-              aba === 'terceirizacao' ? 'bg-brand-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800',
-            )}
-          >
-            <Briefcase size={13} /> Terceirização
-          </button>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-800 p-0.5 w-fit">
+            <button
+              onClick={() => setAba('lancamentos')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                aba === 'lancamentos' ? 'bg-brand-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800',
+              )}
+            >
+              <Wallet size={13} /> Lançamentos
+            </button>
+            <button
+              onClick={() => setAba('terceirizacao')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                aba === 'terceirizacao' ? 'bg-brand-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800',
+              )}
+            >
+              <Briefcase size={13} /> Terceirização
+            </button>
+          </div>
+
+          {aba === 'lancamentos' && lancamentos.length > 0 && (
+            <BotaoExportar onExcel={exportarComoExcel} onPdf={exportarComoPdf} />
+          )}
         </div>
 
         {aba === 'terceirizacao' ? (

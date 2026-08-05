@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Download,
   FileText,
@@ -39,7 +39,17 @@ import { cn } from '@/lib/cn';
 import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
 
 export default function ClientesPage() {
+  return (
+    <Suspense fallback={null}>
+      <ClientesPageConteudo />
+    </Suspense>
+  );
+}
+
+function ClientesPageConteudo() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const idBuscado = searchParams.get('id');
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [busca, setBusca] = useState('');
   const [selecionado, setSelecionado] = useState<Cliente | null>(null);
@@ -54,13 +64,14 @@ export default function ClientesPage() {
     try {
       const dados = await listarClientes(busca || undefined);
       setClientes(dados);
-      setSelecionado((atual) => (atual && dados.some((c) => c._id === atual._id) ? atual : dados[0] ?? null));
+      const alvo = idBuscado ? dados.find((c) => c._id === idBuscado) : undefined;
+      setSelecionado((atual) => alvo ?? (atual && dados.some((c) => c._id === atual._id) ? atual : dados[0] ?? null));
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'erro ao carregar clientes');
     } finally {
       setLoading(false);
     }
-  }, [busca]);
+  }, [busca, idBuscado]);
 
   useEffect(() => {
     carregar();
