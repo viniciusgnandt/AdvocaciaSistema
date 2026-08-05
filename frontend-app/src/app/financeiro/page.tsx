@@ -17,6 +17,7 @@ import {
   type TipoLancamento,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { paraNumero } from '@/lib/moeda';
 
 const STATUS_LABEL: Record<string, string> = {
   pendente: 'Pendente',
@@ -321,7 +322,7 @@ function NovoLancamentoModal({ onFechar, onCriado }: { onFechar: () => void; onC
   const [salvando, setSalvando] = useState(false);
 
   const salvar = async () => {
-    const valorNumero = Number(form.valor.replace(',', '.'));
+    const valorNumero = paraNumero(form.valor);
     const numParcelas = form.parcelado ? Number(form.parcelas) : undefined;
     if (!form.descricao.trim() || !form.data_vencimento || !valorNumero || valorNumero <= 0) {
       setErro('Preencha descrição, valor e vencimento.');

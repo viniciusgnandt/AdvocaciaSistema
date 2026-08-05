@@ -11,6 +11,7 @@ import {
   type TipoServicoTerceirizado,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { paraNumero } from '@/lib/moeda';
 
 const TIPO_LABEL: Record<TipoServicoTerceirizado, string> = {
   correspondente: 'Correspondente',
@@ -204,7 +205,7 @@ function NovoServicoModal({ onFechar, onCriado }: { onFechar: () => void; onCria
         descricao: form.descricao,
         numero_processo: form.numero_processo || undefined,
         data_compromisso: new Date(form.data_compromisso).toISOString(),
-        valor: form.valor ? Number(form.valor.replace(',', '.')) : undefined,
+        valor: form.valor ? paraNumero(form.valor) : undefined,
       });
       onCriado();
     } catch (err) {

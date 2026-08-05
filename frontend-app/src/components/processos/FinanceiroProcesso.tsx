@@ -11,6 +11,7 @@ import {
   type TipoLancamento,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { paraNumero } from '@/lib/moeda';
 
 function formatarMoeda(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -172,7 +173,7 @@ function NovoLancamentoModal({
   const [salvando, setSalvando] = useState(false);
 
   const salvar = async () => {
-    const valorNumero = Number(form.valor.replace(',', '.'));
+    const valorNumero = paraNumero(form.valor);
     if (!form.descricao.trim() || !form.data_vencimento || !valorNumero || valorNumero <= 0) {
       setErro('Preencha descrição, valor e vencimento.');
       return;
