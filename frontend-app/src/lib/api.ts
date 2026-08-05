@@ -311,6 +311,15 @@ export function puxarNovasPublicacoes() {
 
 export type Movimentacao = { data: string; descricao: string; codigo?: number };
 
+export type TipoHonorario = 'fixo' | 'percentual' | 'exito' | 'misto';
+
+export type Honorarios = {
+  tipo?: TipoHonorario;
+  valor_fixo?: number;
+  percentual?: number;
+  observacoes?: string;
+};
+
 export type Processo = {
   _id: string;
   numero_cnj: string;
@@ -329,6 +338,17 @@ export type Processo = {
   datajud_atualizado_em?: string;
   provisorio: boolean;
   proxima_audiencia?: string;
+  fase_processual?: string;
+  advogado_parte_contraria?: string;
+  observacoes?: string;
+  honorarios?: Honorarios;
+};
+
+export type AtualizarProcesso = {
+  fase_processual?: string;
+  advogado_parte_contraria?: string;
+  observacoes?: string;
+  honorarios?: Honorarios;
 };
 
 export type FiltrosProcessos = {
@@ -355,6 +375,10 @@ export function listarProcessos(filtros: FiltrosProcessos = {}) {
 
 export function buscarProcesso(numeroCnj: string) {
   return request<Processo>(`/processos/${numeroCnj}`);
+}
+
+export function atualizarProcesso(numeroCnj: string, dto: AtualizarProcesso) {
+  return request<Processo>(`/processos/${numeroCnj}`, { method: 'PATCH', body: JSON.stringify(dto) });
 }
 
 export type DocumentoProcesso = {

@@ -1,10 +1,11 @@
-import { BadRequestException, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Processo } from './schemas/processo.schema';
 import { DatajudConnectorService } from './connectors/datajud-connector.service';
 import { ProcessosService } from './processos.service';
+import { AtualizarProcessoDto } from './dto/atualizar-processo.dto';
 
 @ApiTags('processos')
 @ApiHeader({ name: 'x-tenant-id', required: true })
@@ -78,6 +79,21 @@ export class ProcessosController {
       tenant_id: new Types.ObjectId(tenantId),
       numero_cnj: numeroCnj.replace(/\D/g, ''),
     });
+    return processo ?? { erro: 'processo nao encontrado' };
+  }
+
+  @Patch(':numeroCnj')
+  @ApiOperation({ summary: 'Atualiza anotacoes manuais do processo (fase, advogado da parte contraria, honorarios, observacoes)' })
+  async atualizar(
+    @Headers('x-tenant-id') tenantId: string,
+    @Param('numeroCnj') numeroCnj: string,
+    @Body() dto: AtualizarProcessoDto,
+  ) {
+    const processo = await this.processoModel.findOneAndUpdate(
+      { tenant_id: new Types.ObjectId(tenantId), numero_cnj: numeroCnj.replace(/\D/g, '') },
+      { $set: dto },
+      { new: true },
+    );
     return processo ?? { erro: 'processo nao encontrado' };
   }
 

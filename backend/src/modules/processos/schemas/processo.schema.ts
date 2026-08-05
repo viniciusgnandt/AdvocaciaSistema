@@ -14,6 +14,24 @@ export class MovimentoProcesso {
 }
 export const MovimentoProcessoSchema = SchemaFactory.createForClass(MovimentoProcesso);
 
+export type TipoHonorario = 'fixo' | 'percentual' | 'exito' | 'misto';
+
+@Schema({ _id: false })
+export class Honorarios {
+  @Prop({ enum: ['fixo', 'percentual', 'exito', 'misto'] })
+  tipo?: TipoHonorario;
+
+  @Prop()
+  valor_fixo?: number;
+
+  @Prop()
+  percentual?: number;
+
+  @Prop()
+  observacoes?: string;
+}
+export const HonorariosSchema = SchemaFactory.createForClass(Honorarios);
+
 @Schema({ timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } })
 export class Processo extends Document {
   @Prop({ type: Types.ObjectId, required: true, index: true })
@@ -73,6 +91,19 @@ export class Processo extends Document {
   // os submenus "Audiência agendada" / "Aguardando sentença" do filtro de status
   @Prop({ index: true })
   proxima_audiencia?: Date;
+
+  // anotacoes manuais do advogado - o DataJud nao expoe nenhum desses campos
+  @Prop()
+  fase_processual?: string;
+
+  @Prop()
+  advogado_parte_contraria?: string;
+
+  @Prop()
+  observacoes?: string;
+
+  @Prop({ type: HonorariosSchema })
+  honorarios?: Honorarios;
 }
 
 export const ProcessoSchema = SchemaFactory.createForClass(Processo);

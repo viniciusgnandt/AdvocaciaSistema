@@ -13,6 +13,8 @@ import {
   Gavel,
   Landmark,
   Paperclip,
+  Pencil,
+  Scale,
   Search,
   Tag,
   UserRound,
@@ -21,13 +23,16 @@ import {
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/Topbar';
 import {
+  atualizarProcesso,
   buscarCliente,
   chaveMovimentacao,
   listarProcessos,
   listarPublicacoes,
+  type AtualizarProcesso,
   type FiltrosProcessos,
   type Processo,
   type Publicacao,
+  type TipoHonorario,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
@@ -194,7 +199,16 @@ function ProcessosPageConteudo() {
               ))}
             </ul>
 
-            {selecionado && <DetalheProcesso key={selecionado._id} processo={selecionado} />}
+            {selecionado && (
+              <DetalheProcesso
+                key={selecionado._id}
+                processo={selecionado}
+                onAtualizado={(atualizado) => {
+                  setSelecionado(atualizado);
+                  setProcessos((atual) => atual.map((p) => (p._id === atualizado._id ? atualizado : p)));
+                }}
+              />
+            )}
           </div>
         )}
       </main>
@@ -238,8 +252,16 @@ const ABAS_PROCESSO: { id: AbaProcesso; label: string; icon: typeof Gavel }[] = 
   { id: 'financeiro', label: 'Financeiro', icon: Wallet },
 ];
 
-function DetalheProcesso({ processo }: { processo: Processo }) {
+const LABEL_HONORARIO: Record<string, string> = {
+  fixo: 'Valor fixo',
+  percentual: 'Percentual sobre a causa',
+  exito: 'Êxito',
+  misto: 'Misto',
+};
+
+function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtualizado: (p: Processo) => void }) {
   const [aba, setAba] = useState<AbaProcesso>('movimentacoes');
+  const [editando, setEditando] = useState(false);
   return (
     <div className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 space-y-6">
       <div>
@@ -270,6 +292,55 @@ function DetalheProcesso({ processo }: { processo: Processo }) {
           valor={processo.data_ajuizamento ? new Date(processo.data_ajuizamento).toLocaleDateString('pt-BR') : undefined}
         />
         <InfoCard icon={DollarSign} label="Valor da causa" valor={formatarMoeda(processo.valor_causa) ?? undefined} />
+      </div>
+
+      <div className="rounded-lg border border-gray-100 dark:border-gray-800 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 flex items-center gap-1">
+            <Scale size={12} /> Detalhes do processo
+          </p>
+          {!editando && (
+            <button
+              onClick={() => setEditando(true)}
+              className="flex items-center gap-1 text-xs text-brand-600 dark:text-brand-400 hover:underline"
+            >
+              <Pencil size={11} /> Editar
+            </button>
+          )}
+        </div>
+
+        {editando ? (
+          <DetalhesProcessoForm processo={processo} onCancelar={() => setEditando(false)} onSalvo={(p) => { onAtualizado(p); setEditando(false); }} />
+        ) : (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+            <div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Fase processual</p>
+              <p className="text-gray-700 dark:text-gray-300">{processo.fase_processual || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Advogado da parte contrária</p>
+              <p className="text-gray-700 dark:text-gray-300">{processo.advogado_parte_contraria || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Honorários</p>
+              <p className="text-gray-700 dark:text-gray-300">
+                {processo.honorarios?.tipo
+                  ? [
+                      LABEL_HONORARIO[processo.honorarios.tipo],
+                      processo.honorarios.valor_fixo ? formatarMoeda(processo.honorarios.valor_fixo) : null,
+                      processo.honorarios.percentual ? `${processo.honorarios.percentual}%` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+                  : '—'}
+              </p>
+            </div>
+            <div className="col-span-2">
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Observações</p>
+              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{processo.observacoes || '—'}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {processo.assuntos.length > 0 && (
@@ -349,6 +420,127 @@ function DetalheProcesso({ processo }: { processo: Processo }) {
 
           {aba === 'financeiro' && <FinanceiroProcesso numeroProcesso={processo.numero_cnj} />}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function DetalhesProcessoForm({
+  processo,
+  onCancelar,
+  onSalvo,
+}: {
+  processo: Processo;
+  onCancelar: () => void;
+  onSalvo: (p: Processo) => void;
+}) {
+  const [form, setForm] = useState<AtualizarProcesso>({
+    fase_processual: processo.fase_processual,
+    advogado_parte_contraria: processo.advogado_parte_contraria,
+    observacoes: processo.observacoes,
+    honorarios: processo.honorarios,
+  });
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const salvar = async () => {
+    setSalvando(true);
+    setErro(null);
+    try {
+      const atualizado = await atualizarProcesso(processo.numero_cnj, form);
+      onSalvo(atualizado);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'erro ao salvar');
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const inputCls =
+    'w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100';
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block">
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Fase processual</span>
+          <input
+            value={form.fase_processual ?? ''}
+            onChange={(e) => setForm({ ...form, fase_processual: e.target.value })}
+            placeholder="Ex.: Instrução, recursal…"
+            className={inputCls}
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Advogado da parte contrária</span>
+          <input
+            value={form.advogado_parte_contraria ?? ''}
+            onChange={(e) => setForm({ ...form, advogado_parte_contraria: e.target.value })}
+            className={inputCls}
+          />
+        </label>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <label className="block">
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Honorários</span>
+          <select
+            value={form.honorarios?.tipo ?? ''}
+            onChange={(e) =>
+              setForm({ ...form, honorarios: { ...form.honorarios, tipo: (e.target.value || undefined) as TipoHonorario | undefined } })
+            }
+            className={inputCls}
+          >
+            <option value="">—</option>
+            <option value="fixo">Valor fixo</option>
+            <option value="percentual">Percentual sobre a causa</option>
+            <option value="exito">Êxito</option>
+            <option value="misto">Misto</option>
+          </select>
+        </label>
+        <label className="block">
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Valor fixo (R$)</span>
+          <input
+            value={form.honorarios?.valor_fixo ?? ''}
+            onChange={(e) => setForm({ ...form, honorarios: { ...form.honorarios, valor_fixo: e.target.value ? Number(e.target.value) : undefined } })}
+            type="number"
+            className={inputCls}
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Percentual (%)</span>
+          <input
+            value={form.honorarios?.percentual ?? ''}
+            onChange={(e) => setForm({ ...form, honorarios: { ...form.honorarios, percentual: e.target.value ? Number(e.target.value) : undefined } })}
+            type="number"
+            className={inputCls}
+          />
+        </label>
+      </div>
+
+      <label className="block">
+        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Observações</span>
+        <textarea
+          value={form.observacoes ?? ''}
+          onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+          rows={3}
+          className={cn(inputCls, 'resize-none')}
+        />
+      </label>
+
+      {erro && <p className="text-xs text-red-600 dark:text-red-400">{erro}</p>}
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={salvar}
+          disabled={salvando}
+          className="rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-1.5 text-sm font-medium text-white transition disabled:opacity-50"
+        >
+          {salvando ? 'Salvando…' : 'Salvar'}
+        </button>
+        <button onClick={onCancelar} className="text-sm px-3 py-1.5 text-gray-500 dark:text-gray-400 hover:underline">
+          Cancelar
+        </button>
       </div>
     </div>
   );
