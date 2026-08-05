@@ -11,7 +11,7 @@ import {
   Clock,
   DollarSign,
   Gavel,
-  History,
+  History as HistoryIcon,
   Landmark,
   Paperclip,
   Pencil,
@@ -248,7 +248,7 @@ function formatarNumeroCnj(numero: string) {
 type AbaProcesso = 'timeline' | 'movimentacoes' | 'arquivos' | 'tarefas' | 'financeiro';
 
 const ABAS_PROCESSO: { id: AbaProcesso; label: string; icon: typeof Gavel }[] = [
-  { id: 'timeline', label: 'Timeline', icon: History },
+  { id: 'timeline', label: 'Timeline', icon: HistoryIcon },
   { id: 'movimentacoes', label: 'Movimentações', icon: Gavel },
   { id: 'arquivos', label: 'Arquivos', icon: Paperclip },
   { id: 'tarefas', label: 'Tarefas', icon: CheckSquare },

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Bell,
+  BarChart3,
   Calendar,
   CheckSquare,
   Gavel,
@@ -26,6 +27,7 @@ const NAV = [
   { href: '/clientes', icon: Users, label: 'Clientes', pronto: true },
   { href: '/agenda', icon: Calendar, label: 'Agenda', pronto: true },
   { href: '/financeiro', icon: Wallet, label: 'Financeiro', pronto: true },
+  { href: '/relatorios', icon: BarChart3, label: 'Relatórios', pronto: true },
 ];
 
 const LABEL_PERFIL: Record<string, string> = { admin: 'Admin', advogado: 'Advogado(a)', assistente: 'Assistente' };
