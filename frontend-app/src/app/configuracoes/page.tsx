@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   Building2,
   Check,
+  Download,
   Info,
   KeyRound,
   Moon,
@@ -20,6 +21,7 @@ import {
   atualizarPerfil,
   atualizarTenant,
   buscarTenant,
+  exportarMeusDados,
   salvarSessao,
   tenantLogado,
   usuarioLogado,
@@ -354,7 +356,51 @@ function EscritorioSecao() {
           </div>
         </div>
       </Cartao>
+
+      <ExportarDadosCartao />
     </div>
+  );
+}
+
+function ExportarDadosCartao() {
+  const [exportando, setExportando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const exportar = async () => {
+    setExportando(true);
+    setErro(null);
+    try {
+      const dados = await exportarMeusDados();
+      const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `trilva-dados-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'erro ao exportar dados');
+    } finally {
+      setExportando(false);
+    }
+  };
+
+  return (
+    <Cartao titulo="Exportar meus dados" subtitulo="LGPD — baixe uma cópia de todos os dados do escritório em JSON">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={exportar}
+          disabled={exportando}
+          className="flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50"
+        >
+          <Download size={14} /> {exportando ? 'Gerando…' : 'Baixar dados (.json)'}
+        </button>
+        {erro && <p className="text-xs text-red-600 dark:text-red-400">{erro}</p>}
+      </div>
+      <p className="text-xs text-gray-400 mt-3">
+        Inclui clientes, processos, tarefas e lançamentos financeiros cadastrados neste escritório.
+      </p>
+    </Cartao>
   );
 }
 

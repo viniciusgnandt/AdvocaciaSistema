@@ -188,6 +188,16 @@ export function buscarTenant() {
   return request<Tenant>('/auth/tenant');
 }
 
+export function exportarMeusDados() {
+  return request<{
+    geradoEm: string;
+    clientes: unknown[];
+    processos: unknown[];
+    tarefas: unknown[];
+    lancamentos: unknown[];
+  }>('/exportacao/meus-dados');
+}
+
 export function atualizarTenant(dto: { nome_escritorio?: string; cnpj?: string }) {
   return request<Tenant>('/auth/tenant', { method: 'PATCH', body: JSON.stringify(dto) });
 }

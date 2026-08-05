@@ -10,6 +10,7 @@ import { DocumentosModule } from './modules/documentos/documentos.module';
 import { ClientesModule } from './modules/clientes/clientes.module';
 import { FinanceiroModule } from './modules/financeiro/financeiro.module';
 import { TerceirizacoesModule } from './modules/terceirizacoes/terceirizacoes.module';
+import { ExportacaoModule } from './modules/exportacao/exportacao.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { TerceirizacoesModule } from './modules/terceirizacoes/terceirizacoes.mo
     ClientesModule,
     FinanceiroModule,
     TerceirizacoesModule,
+    ExportacaoModule,
   ],
 })
 export class AppModule {}
