@@ -11,6 +11,7 @@ import {
   Clock,
   DollarSign,
   Gavel,
+  History,
   Landmark,
   Paperclip,
   Pencil,
@@ -39,6 +40,7 @@ import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
 import { AnexoMovimentacao } from '@/components/processos/AnexoMovimentacao';
 import { FinanceiroProcesso } from '@/components/processos/FinanceiroProcesso';
 import { TarefasProcesso } from '@/components/processos/TarefasProcesso';
+import { TimelineProcesso } from '@/components/processos/TimelineProcesso';
 import { BotaoExportar } from '@/components/ui/BotaoExportar';
 import { exportarExcel, exportarPdf } from '@/lib/exportar';
 
@@ -243,9 +245,10 @@ function formatarNumeroCnj(numero: string) {
   return `${numero.slice(0, 7)}-${numero.slice(7, 9)}.${numero.slice(9, 13)}.${numero.slice(13, 14)}.${numero.slice(14, 16)}.${numero.slice(16)}`;
 }
 
-type AbaProcesso = 'movimentacoes' | 'arquivos' | 'tarefas' | 'financeiro';
+type AbaProcesso = 'timeline' | 'movimentacoes' | 'arquivos' | 'tarefas' | 'financeiro';
 
 const ABAS_PROCESSO: { id: AbaProcesso; label: string; icon: typeof Gavel }[] = [
+  { id: 'timeline', label: 'Timeline', icon: History },
   { id: 'movimentacoes', label: 'Movimentações', icon: Gavel },
   { id: 'arquivos', label: 'Arquivos', icon: Paperclip },
   { id: 'tarefas', label: 'Tarefas', icon: CheckSquare },
@@ -384,6 +387,10 @@ function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtu
         </div>
 
         <div className="pt-5">
+          {aba === 'timeline' && (
+            <TimelineProcesso numeroProcesso={processo.numero_cnj} movimentacoes={processo.movimentacoes} />
+          )}
+
           {aba === 'movimentacoes' && (
             <div>
               {processo.provisorio ? (
