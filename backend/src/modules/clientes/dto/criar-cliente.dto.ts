@@ -1,5 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsIn, IsObject, IsOptional, IsString } from 'class-validator';
+
+export type EnderecoDto = {
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
+};
 
 export class CriarClienteDto {
   @ApiProperty({ enum: ['pf', 'pj'] })
@@ -34,4 +44,34 @@ export class CriarClienteDto {
   @IsOptional()
   @IsString()
   whatsapp?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  profissao?: string;
+
+  @ApiProperty({ required: false, enum: ['solteiro', 'casado', 'divorciado', 'viuvo', 'uniao_estavel'] })
+  @IsOptional()
+  @IsIn(['solteiro', 'casado', 'divorciado', 'viuvo', 'uniao_estavel'])
+  estado_civil?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  razao_social?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  nome_fantasia?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  observacoes?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsObject()
+  endereco?: EnderecoDto;
 }

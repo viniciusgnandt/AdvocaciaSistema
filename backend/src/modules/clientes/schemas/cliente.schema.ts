@@ -3,6 +3,19 @@ import { Document, Types } from 'mongoose';
 
 export type TipoCliente = 'pf' | 'pj';
 export type StatusCliente = 'ativo' | 'inativo' | 'prospect';
+export type EstadoCivil = 'solteiro' | 'casado' | 'divorciado' | 'viuvo' | 'uniao_estavel';
+
+@Schema({ _id: false })
+export class Endereco {
+  @Prop() cep?: string;
+  @Prop() logradouro?: string;
+  @Prop() numero?: string;
+  @Prop() complemento?: string;
+  @Prop() bairro?: string;
+  @Prop() cidade?: string;
+  @Prop() uf?: string;
+}
+export const EnderecoSchema = SchemaFactory.createForClass(Endereco);
 
 @Schema({ timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } })
 export class Cliente extends Document {
@@ -38,6 +51,16 @@ export class Cliente extends Document {
 
   @Prop({ type: [String], default: [] })
   tags: string[];
+
+  @Prop() profissao?: string;
+  @Prop({ enum: ['solteiro', 'casado', 'divorciado', 'viuvo', 'uniao_estavel'] })
+  estado_civil?: EstadoCivil;
+  @Prop() razao_social?: string;
+  @Prop() nome_fantasia?: string;
+  @Prop() observacoes?: string;
+
+  @Prop({ type: EnderecoSchema })
+  endereco?: Endereco;
 }
 
 export const ClienteSchema = SchemaFactory.createForClass(Cliente);

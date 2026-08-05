@@ -38,6 +38,24 @@ import {
 import { cn } from '@/lib/cn';
 import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
 
+const LABEL_ESTADO_CIVIL: Record<string, string> = {
+  solteiro: 'Solteiro(a)',
+  casado: 'Casado(a)',
+  divorciado: 'Divorciado(a)',
+  viuvo: 'Viúvo(a)',
+  uniao_estavel: 'União estável',
+};
+
+function enderecoFormatado(endereco?: Cliente['endereco']): string | undefined {
+  if (!endereco) return undefined;
+  const linha1 = [endereco.logradouro, endereco.numero].filter(Boolean).join(', ');
+  const linha2 = [endereco.bairro, endereco.cidade && endereco.uf ? `${endereco.cidade}/${endereco.uf}` : endereco.cidade]
+    .filter(Boolean)
+    .join(' — ');
+  const texto = [linha1, linha2].filter(Boolean).join(' · ');
+  return texto || undefined;
+}
+
 export default function ClientesPage() {
   return (
     <Suspense fallback={null}>
@@ -237,7 +255,24 @@ function ClientesPageConteudo() {
                   {selecionado.email && <InfoCard icon={Mail} label="E-mail" valor={selecionado.email} />}
                   {selecionado.telefone && <InfoCard icon={Phone} label="Telefone" valor={selecionado.telefone} />}
                   {selecionado.whatsapp && <InfoCard icon={Phone} label="WhatsApp" valor={selecionado.whatsapp} />}
+                  {selecionado.profissao && <InfoCard icon={UserRound} label="Profissão" valor={selecionado.profissao} />}
+                  {selecionado.estado_civil && (
+                    <InfoCard icon={UserRound} label="Estado civil" valor={LABEL_ESTADO_CIVIL[selecionado.estado_civil]} />
+                  )}
+                  {selecionado.razao_social && <InfoCard icon={Landmark} label="Razão social" valor={selecionado.razao_social} />}
+                  {selecionado.nome_fantasia && <InfoCard icon={Landmark} label="Nome fantasia" valor={selecionado.nome_fantasia} />}
+                  {selecionado.origem_lead && <InfoCard icon={Link2} label="Origem" valor={selecionado.origem_lead} />}
+                  {enderecoFormatado(selecionado.endereco) && (
+                    <InfoCard icon={Landmark} label="Endereço" valor={enderecoFormatado(selecionado.endereco)} />
+                  )}
                 </div>
+
+                {selecionado.observacoes && (
+                  <div className="rounded-lg border border-gray-100 dark:border-gray-800 p-3">
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">Observações</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{selecionado.observacoes}</p>
+                  </div>
+                )}
 
                 <div>
                   <div className="flex items-center justify-between mb-3">
@@ -439,6 +474,13 @@ function ClienteModal({
           email: clienteEditando.email,
           telefone: clienteEditando.telefone,
           whatsapp: clienteEditando.whatsapp,
+          profissao: clienteEditando.profissao,
+          estado_civil: clienteEditando.estado_civil,
+          razao_social: clienteEditando.razao_social,
+          nome_fantasia: clienteEditando.nome_fantasia,
+          observacoes: clienteEditando.observacoes,
+          origem_lead: clienteEditando.origem_lead,
+          endereco: clienteEditando.endereco,
         }
       : { tipo: 'pf', nome: '' },
   );
@@ -464,15 +506,15 @@ function ClienteModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-2xl animate-scale-in">
-        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-6 py-4">
+      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-2xl animate-scale-in max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-6 py-4 shrink-0">
           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{editando ? 'Editar cliente' : 'Novo cliente'}</p>
           <button onClick={onFechar} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
             <X size={18} />
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-4">
+        <div className="px-6 py-5 space-y-4 overflow-y-auto">
           <div className="flex gap-2">
             {(['pf', 'pj'] as const).map((tipo) => (
               <button
@@ -534,6 +576,125 @@ function ClienteModal({
               />
             </Campo>
           </div>
+
+          {form.tipo === 'pf' ? (
+            <div className="grid grid-cols-2 gap-3">
+              <Campo label="Profissão">
+                <input
+                  value={form.profissao ?? ''}
+                  onChange={(e) => setForm({ ...form, profissao: e.target.value })}
+                  className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+                />
+              </Campo>
+              <Campo label="Estado civil">
+                <select
+                  value={form.estado_civil ?? ''}
+                  onChange={(e) => setForm({ ...form, estado_civil: (e.target.value || undefined) as NovoCliente['estado_civil'] })}
+                  className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="">—</option>
+                  <option value="solteiro">Solteiro(a)</option>
+                  <option value="casado">Casado(a)</option>
+                  <option value="divorciado">Divorciado(a)</option>
+                  <option value="viuvo">Viúvo(a)</option>
+                  <option value="uniao_estavel">União estável</option>
+                </select>
+              </Campo>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <Campo label="Razão social">
+                <input
+                  value={form.razao_social ?? ''}
+                  onChange={(e) => setForm({ ...form, razao_social: e.target.value })}
+                  className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+                />
+              </Campo>
+              <Campo label="Nome fantasia">
+                <input
+                  value={form.nome_fantasia ?? ''}
+                  onChange={(e) => setForm({ ...form, nome_fantasia: e.target.value })}
+                  className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+                />
+              </Campo>
+            </div>
+          )}
+
+          <Campo label="Origem">
+            <input
+              value={form.origem_lead ?? ''}
+              onChange={(e) => setForm({ ...form, origem_lead: e.target.value })}
+              placeholder="Indicação, site, parceria…"
+              className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+            />
+          </Campo>
+
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 pt-1">Endereço</p>
+          <div className="grid grid-cols-3 gap-3">
+            <Campo label="CEP">
+              <input
+                value={form.endereco?.cep ?? ''}
+                onChange={(e) => setForm({ ...form, endereco: { ...form.endereco, cep: e.target.value } })}
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+              />
+            </Campo>
+            <Campo label="Cidade">
+              <input
+                value={form.endereco?.cidade ?? ''}
+                onChange={(e) => setForm({ ...form, endereco: { ...form.endereco, cidade: e.target.value } })}
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+              />
+            </Campo>
+            <Campo label="UF">
+              <input
+                value={form.endereco?.uf ?? ''}
+                maxLength={2}
+                onChange={(e) => setForm({ ...form, endereco: { ...form.endereco, uf: e.target.value.toUpperCase() } })}
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+              />
+            </Campo>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Campo label="Logradouro">
+              <input
+                value={form.endereco?.logradouro ?? ''}
+                onChange={(e) => setForm({ ...form, endereco: { ...form.endereco, logradouro: e.target.value } })}
+                className="col-span-2 w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+              />
+            </Campo>
+            <Campo label="Número">
+              <input
+                value={form.endereco?.numero ?? ''}
+                onChange={(e) => setForm({ ...form, endereco: { ...form.endereco, numero: e.target.value } })}
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+              />
+            </Campo>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Campo label="Bairro">
+              <input
+                value={form.endereco?.bairro ?? ''}
+                onChange={(e) => setForm({ ...form, endereco: { ...form.endereco, bairro: e.target.value } })}
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+              />
+            </Campo>
+            <Campo label="Complemento">
+              <input
+                value={form.endereco?.complemento ?? ''}
+                onChange={(e) => setForm({ ...form, endereco: { ...form.endereco, complemento: e.target.value } })}
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+              />
+            </Campo>
+          </div>
+
+          <Campo label="Observações">
+            <textarea
+              value={form.observacoes ?? ''}
+              onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+              rows={3}
+              className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100 resize-none"
+            />
+          </Campo>
 
           {erro && <p className="text-xs text-red-600 dark:text-red-400">{erro}</p>}
 

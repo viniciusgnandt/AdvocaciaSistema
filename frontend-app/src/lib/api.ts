@@ -403,6 +403,18 @@ export function excluirPasta(id: string) {
   return request<{ ok: boolean } | { erro: string }>(`/pastas/${id}`, { method: 'DELETE' });
 }
 
+export type Endereco = {
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
+};
+
+export type EstadoCivil = 'solteiro' | 'casado' | 'divorciado' | 'viuvo' | 'uniao_estavel';
+
 export type Cliente = {
   _id: string;
   tipo: 'pf' | 'pj';
@@ -413,6 +425,13 @@ export type Cliente = {
   telefone?: string;
   whatsapp?: string;
   status: 'ativo' | 'inativo' | 'prospect';
+  profissao?: string;
+  estado_civil?: EstadoCivil;
+  razao_social?: string;
+  nome_fantasia?: string;
+  observacoes?: string;
+  origem_lead?: string;
+  endereco?: Endereco;
 };
 
 export type NovoCliente = {
@@ -423,6 +442,13 @@ export type NovoCliente = {
   email?: string;
   telefone?: string;
   whatsapp?: string;
+  profissao?: string;
+  estado_civil?: EstadoCivil;
+  razao_social?: string;
+  nome_fantasia?: string;
+  observacoes?: string;
+  origem_lead?: string;
+  endereco?: Endereco;
 };
 
 export function listarClientes(busca?: string) {
