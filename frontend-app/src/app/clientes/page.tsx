@@ -97,6 +97,7 @@ function ClientesPageConteudo() {
   const [modal, setModal] = useState<'novo' | 'editar' | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [somenteFavoritos, setSomenteFavoritos] = useState(false);
+  const [somenteInativos, setSomenteInativos] = useState(false);
   const { ehFavorito, alternar } = useFavoritos();
   const [modalProcuracao, setModalProcuracao] = useState(false);
   const [modalOnboarding, setModalOnboarding] = useState(false);
@@ -213,18 +214,32 @@ function ClientesPageConteudo() {
             />
           </div>
           {clientes.length > 0 && (
-            <button
-              onClick={() => setSomenteFavoritos((v) => !v)}
-              className={cn(
-                'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border shrink-0',
-                somenteFavoritos
-                  ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
-                  : 'border-gray-200 text-gray-500 dark:border-gray-800 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700',
-              )}
-            >
-              <Star size={12} fill={somenteFavoritos ? 'currentColor' : 'none'} />
-              Favoritos
-            </button>
+            <>
+              <button
+                onClick={() => setSomenteFavoritos((v) => !v)}
+                className={cn(
+                  'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border shrink-0',
+                  somenteFavoritos
+                    ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
+                    : 'border-gray-200 text-gray-500 dark:border-gray-800 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700',
+                )}
+              >
+                <Star size={12} fill={somenteFavoritos ? 'currentColor' : 'none'} />
+                Favoritos
+              </button>
+              <button
+                onClick={() => setSomenteInativos((v) => !v)}
+                className={cn(
+                  'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border shrink-0',
+                  somenteInativos
+                    ? 'border-gray-400 bg-gray-100 text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200'
+                    : 'border-gray-200 text-gray-500 dark:border-gray-800 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700',
+                )}
+              >
+                <UserRound size={12} />
+                Inativos ({clientes.filter((c) => c.status === 'inativo').length})
+              </button>
+            </>
           )}
           <button
             onClick={() => setModal('novo')}
@@ -245,6 +260,7 @@ function ClientesPageConteudo() {
             <ul className="space-y-2 max-h-[calc(100vh-180px)] overflow-y-auto pr-1">
               {[...clientes]
                 .filter((c) => !somenteFavoritos || ehFavorito('cliente', c._id))
+                .filter((c) => !somenteInativos || c.status === 'inativo')
                 .sort((a, b) => Number(ehFavorito('cliente', b._id)) - Number(ehFavorito('cliente', a._id)))
                 .map((c) => (
                 <li
@@ -252,6 +268,7 @@ function ClientesPageConteudo() {
                   onClick={() => setSelecionado(c)}
                   className={cn(
                     'rounded-xl border p-3 cursor-pointer transition-all',
+                    c.status === 'inativo' && 'opacity-60',
                     selecionado?._id === c._id
                       ? 'border-brand-400 dark:border-brand-700 bg-brand-50/50 dark:bg-brand-900/10'
                       : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-700',
@@ -259,6 +276,11 @@ function ClientesPageConteudo() {
                 >
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate flex items-center gap-1.5">
                     <span className="truncate flex-1">{c.nome}</span>
+                    {c.status === 'inativo' && (
+                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                        inativo
+                      </span>
+                    )}
                     <BotaoFavorito favorito={ehFavorito('cliente', c._id)} onClick={() => alternar('cliente', c._id)} />
                   </p>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
@@ -666,6 +688,7 @@ function ClienteModal({
   onSalvo: (c: Cliente) => void;
 }) {
   const editando = !!clienteEditando;
+  const [status, setStatus] = useState<Cliente['status']>(clienteEditando?.status ?? 'ativo');
   const [form, setForm] = useState<NovoCliente>(
     clienteEditando
       ? {
@@ -731,7 +754,7 @@ function ClienteModal({
     setConflito(false);
     try {
       const cliente = editando
-        ? await atualizarCliente(clienteEditando._id, { ...form, versao_esperada: clienteEditando.updated_at })
+        ? await atualizarCliente(clienteEditando._id, { ...form, status, versao_esperada: clienteEditando.updated_at })
         : await criarCliente(form);
       onSalvo(cliente);
     } catch (err) {
@@ -887,6 +910,20 @@ function ClienteModal({
                 />
               </Campo>
             </div>
+          )}
+
+          {editando && (
+            <Campo label="Status">
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as Cliente['status'])}
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+              >
+                <option value="ativo">Ativo</option>
+                <option value="inativo">Inativo</option>
+                <option value="prospect">Prospect</option>
+              </select>
+            </Campo>
           )}
 
           <Campo label="Origem">
