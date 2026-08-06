@@ -23,6 +23,7 @@ import {
   Building2,
   Calendar,
   CheckSquare,
+  ChevronDown,
   Clock,
   DollarSign,
   Gavel,
@@ -119,20 +120,7 @@ export default function RelatoriosPage() {
           </div>
         )}
 
-        <div className="flex items-center gap-1 rounded-lg border border-gray-200 dark:border-gray-800 p-1 w-fit overflow-x-auto">
-          {CATEGORIAS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setCategoria(id)}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap',
-                categoria === id ? 'bg-brand-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800',
-              )}
-            >
-              <Icon size={14} /> {label}
-            </button>
-          ))}
-        </div>
+        <CategoriaDropdown categoria={categoria} onChange={setCategoria} />
 
         {carregando ? (
           <p className="text-sm text-gray-400">Carregando…</p>
@@ -146,6 +134,50 @@ export default function RelatoriosPage() {
         )}
       </main>
     </>
+  );
+}
+
+function CategoriaDropdown({ categoria, onChange }: { categoria: Categoria; onChange: (c: Categoria) => void }) {
+  const [aberto, setAberto] = useState(false);
+  const atual = CATEGORIAS.find((c) => c.id === categoria)!;
+  const AtualIcon = atual.icon;
+
+  return (
+    <div className="relative w-fit">
+      <button
+        onClick={() => setAberto((v) => !v)}
+        className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+      >
+        <AtualIcon size={15} className="text-brand-600 dark:text-brand-400" />
+        {atual.label}
+        <ChevronDown size={14} className="text-gray-400" />
+      </button>
+
+      {aberto && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setAberto(false)} />
+          <div className="absolute left-0 top-full mt-1 z-40 w-48 rounded-lg border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg overflow-hidden">
+            {CATEGORIAS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => {
+                  onChange(id);
+                  setAberto(false);
+                }}
+                className={cn(
+                  'w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-left',
+                  id === categoria
+                    ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800',
+                )}
+              >
+                <Icon size={15} /> {label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -171,6 +203,39 @@ function Kpi({ icon: Icon, label, value, tone = 'default' }: { icon: typeof Gave
         <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight truncate">{value}</p>
         <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{label}</p>
       </div>
+    </div>
+  );
+}
+
+type Insight = { mensagem: string; variante: 'success' | 'warning' | 'danger' | 'info' };
+
+const INSIGHT_ESTILO: Record<Insight['variante'], string> = {
+  success: 'border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300',
+  warning: 'border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300',
+  danger: 'border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300',
+  info: 'border-brand-200 dark:border-brand-900 bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300',
+};
+
+const INSIGHT_ICONE: Record<Insight['variante'], typeof AlertTriangle> = {
+  success: CheckSquare,
+  warning: AlertTriangle,
+  danger: AlertTriangle,
+  info: PieChartIcon,
+};
+
+function InsightsPanel({ insights }: { insights: Insight[] }) {
+  if (insights.length === 0) return null;
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+      {insights.map((insight, i) => {
+        const Icon = INSIGHT_ICONE[insight.variante];
+        return (
+          <div key={i} className={cn('flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm', INSIGHT_ESTILO[insight.variante])}>
+            <Icon size={15} className="shrink-0 mt-0.5" />
+            <span>{insight.mensagem}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -246,8 +311,34 @@ function RelatorioProcessos({ processos }: { processos: Processo[] }) {
   const tribunalTop = porTribunal[0]?.nome ?? '—';
   const classeTop = maisFrequente(processos.map((p) => p.classe));
 
+  const insights = useMemo<Insight[]>(() => {
+    const lista: Insight[] = [];
+    const seisDezenas = new Date();
+    seisDezenas.setDate(seisDezenas.getDate() - 60);
+    const parados = processos.filter(
+      (p) => p.status === 'ativo' && p.datajud_atualizado_em && new Date(p.datajud_atualizado_em) < seisDezenas,
+    ).length;
+    if (parados > 0) {
+      lista.push({ mensagem: `${parados} processo${parados > 1 ? 's' : ''} ativo${parados > 1 ? 's' : ''} sem atualização há mais de 60 dias — vale conferir.`, variante: 'warning' });
+    }
+    if (kpis.comAudiencia > 0) {
+      lista.push({ mensagem: `${kpis.comAudiencia} processo${kpis.comAudiencia > 1 ? 's' : ''} com audiência futura agendada.`, variante: 'info' });
+    }
+    if (kpis.novosEsteMes === 0) {
+      lista.push({ mensagem: 'Nenhum processo novo ajuizado este mês.', variante: 'warning' });
+    } else {
+      lista.push({ mensagem: `${kpis.novosEsteMes} processo${kpis.novosEsteMes > 1 ? 's' : ''} novo${kpis.novosEsteMes > 1 ? 's' : ''} este mês.`, variante: 'success' });
+    }
+    if (kpis.provisorios > 0) {
+      lista.push({ mensagem: `${kpis.provisorios} processo${kpis.provisorios > 1 ? 's' : ''} ainda provisório${kpis.provisorios > 1 ? 's' : ''} (não indexado pelo DataJud).`, variante: 'info' });
+    }
+    return lista;
+  }, [processos, kpis]);
+
   return (
     <div className="space-y-5">
+      <InsightsPanel insights={insights} />
+
       <KpiGrid>
         <Kpi icon={Gavel} label="Total de processos" value={kpis.total} tone="brand" />
         <Kpi icon={TrendingUp} label="Ativos" value={kpis.ativos} tone="success" />
@@ -382,8 +473,31 @@ function RelatorioFinanceiro({ lancamentos, processos, usuarios }: { lancamentos
     });
   }, [lancamentos]);
 
+  const insights = useMemo<Insight[]>(() => {
+    const lista: Insight[] = [];
+    if (kpis.taxaInadimplencia > 15) {
+      lista.push({ mensagem: `Taxa de inadimplência em ${kpis.taxaInadimplencia.toFixed(0)}% — acima do saudável (15%).`, variante: 'danger' });
+    } else if (kpis.taxaInadimplencia > 0) {
+      lista.push({ mensagem: `Taxa de inadimplência controlada: ${kpis.taxaInadimplencia.toFixed(0)}%.`, variante: 'success' });
+    }
+    if (kpis.saldoMes < 0) {
+      lista.push({ mensagem: `Saldo do mês negativo: ${formatarMoeda(kpis.saldoMes)}.`, variante: 'danger' });
+    } else if (kpis.saldoMes > 0) {
+      lista.push({ mensagem: `Saldo do mês positivo: ${formatarMoeda(kpis.saldoMes)}.`, variante: 'success' });
+    }
+    if (kpis.atrasados > 0) {
+      lista.push({ mensagem: `${kpis.atrasados} lançamento${kpis.atrasados > 1 ? 's' : ''} atrasado${kpis.atrasados > 1 ? 's' : ''} pedindo atenção.`, variante: 'warning' });
+    }
+    if (kpis.honorariosExito > 0) {
+      lista.push({ mensagem: `${formatarMoeda(kpis.honorariosExito)} em honorários de êxito acumulados.`, variante: 'info' });
+    }
+    return lista;
+  }, [kpis]);
+
   return (
     <div className="space-y-5">
+      <InsightsPanel insights={insights} />
+
       <KpiGrid>
         <Kpi icon={TrendingUp} label="A receber" value={formatarMoeda(kpis.aReceber)} tone="success" />
         <Kpi icon={TrendingDown} label="A pagar" value={formatarMoeda(kpis.aPagar)} tone="danger" />
@@ -496,8 +610,27 @@ function RelatorioTarefas({ tarefas, usuarios }: { tarefas: Tarefa[]; usuarios: 
     return Array.from(contagem.entries()).map(([nome, v]) => ({ nome, Concluídas: v.concluidas, Pendentes: v.pendentes }));
   }, [tarefas, nomePorId]);
 
+  const insights = useMemo<Insight[]>(() => {
+    const lista: Insight[] = [];
+    if (kpis.criticasAbertas > 0) {
+      lista.push({ mensagem: `${kpis.criticasAbertas} tarefa${kpis.criticasAbertas > 1 ? 's' : ''} crítica${kpis.criticasAbertas > 1 ? 's' : ''} em aberto — priorize.`, variante: 'danger' });
+    }
+    if (kpis.atrasadas > 0) {
+      lista.push({ mensagem: `${kpis.atrasadas} tarefa${kpis.atrasadas > 1 ? 's' : ''} atrasada${kpis.atrasadas > 1 ? 's' : ''}.`, variante: 'warning' });
+    }
+    if (kpis.taxaConclusao >= 70) {
+      lista.push({ mensagem: `Boa taxa de conclusão: ${kpis.taxaConclusao.toFixed(0)}%.`, variante: 'success' });
+    }
+    if (kpis.semResponsavel > 0) {
+      lista.push({ mensagem: `${kpis.semResponsavel} tarefa${kpis.semResponsavel > 1 ? 's' : ''} sem responsável definido.`, variante: 'info' });
+    }
+    return lista;
+  }, [kpis]);
+
   return (
     <div className="space-y-5">
+      <InsightsPanel insights={insights} />
+
       <KpiGrid>
         <Kpi icon={ListChecks} label="Total de tarefas" value={kpis.total} tone="brand" />
         <Kpi icon={CheckSquare} label="Concluídas" value={kpis.concluidas} tone="success" />
@@ -570,8 +703,28 @@ function RelatorioClientes({ clientes, processos }: { clientes: Cliente[]; proce
     return Array.from(contagem.entries()).map(([status, total]) => ({ nome: LABEL[status] ?? status, total }));
   }, [clientes]);
 
+  const insights = useMemo<Insight[]>(() => {
+    const lista: Insight[] = [];
+    if (kpis.semProcesso > 0) {
+      lista.push({ mensagem: `${kpis.semProcesso} cliente${kpis.semProcesso > 1 ? 's' : ''} sem nenhum processo vinculado.`, variante: 'warning' });
+    }
+    if (kpis.prospects > 0) {
+      lista.push({ mensagem: `${kpis.prospects} prospect${kpis.prospects > 1 ? 's' : ''} aguardando conversão.`, variante: 'info' });
+    }
+    if (kpis.contatoCompleto < kpis.total) {
+      const faltando = kpis.total - kpis.contatoCompleto;
+      lista.push({ mensagem: `${faltando} cliente${faltando > 1 ? 's' : ''} com dados de contato incompletos.`, variante: 'warning' });
+    }
+    if (kpis.comMultiplos > 0) {
+      lista.push({ mensagem: `${kpis.comMultiplos} cliente${kpis.comMultiplos > 1 ? 's' : ''} com mais de um processo — boa retenção.`, variante: 'success' });
+    }
+    return lista;
+  }, [kpis]);
+
   return (
     <div className="space-y-5">
+      <InsightsPanel insights={insights} />
+
       <KpiGrid>
         <Kpi icon={Users} label="Total de clientes" value={kpis.total} tone="brand" />
         <Kpi icon={CheckSquare} label="Ativos" value={kpis.ativos} tone="success" />
