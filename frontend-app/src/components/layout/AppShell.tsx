@@ -6,6 +6,7 @@ import { Menu, Scale } from 'lucide-react';
 import { getToken } from '@/lib/api';
 import { Sidebar } from './Sidebar';
 import { MobileBottomNav } from './MobileBottomNav';
+import { AtalhosTeclado } from './AtalhosTeclado';
 
 const ROTAS_PUBLICAS = ['/login', '/registro', '/status'];
 
@@ -60,6 +61,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <MobileBottomNav onAbrirMenu={() => setMenuAberto(true)} />
       </div>
+
+      <AtalhosTeclado />
     </div>
   );
 }
