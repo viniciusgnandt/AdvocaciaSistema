@@ -5,9 +5,10 @@ import { Processo, ProcessoSchema } from './schemas/processo.schema';
 import { DatajudConnectorService } from './connectors/datajud-connector.service';
 import { ProcessosController } from './processos.controller';
 import { ProcessosService } from './processos.service';
+import { AuditoriaModule } from '../auditoria/auditoria.module';
 
 @Module({
-  imports: [HttpModule, MongooseModule.forFeature([{ name: Processo.name, schema: ProcessoSchema }])],
+  imports: [HttpModule, MongooseModule.forFeature([{ name: Processo.name, schema: ProcessoSchema }]), AuditoriaModule],
   controllers: [ProcessosController],
   providers: [DatajudConnectorService, ProcessosService],
   exports: [DatajudConnectorService, ProcessosService],

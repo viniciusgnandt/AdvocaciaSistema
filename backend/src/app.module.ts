@@ -12,6 +12,7 @@ import { FinanceiroModule } from './modules/financeiro/financeiro.module';
 import { TerceirizacoesModule } from './modules/terceirizacoes/terceirizacoes.module';
 import { ExportacaoModule } from './modules/exportacao/exportacao.module';
 import { PrazosModule } from './modules/prazos/prazos.module';
+import { AuditoriaModule } from './modules/auditoria/auditoria.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { PrazosModule } from './modules/prazos/prazos.module';
     TerceirizacoesModule,
     ExportacaoModule,
     PrazosModule,
+    AuditoriaModule,
   ],
 })
 export class AppModule {}

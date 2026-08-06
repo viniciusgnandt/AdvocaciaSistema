@@ -6,6 +6,8 @@ import { Processo } from './schemas/processo.schema';
 import { DatajudConnectorService } from './connectors/datajud-connector.service';
 import { ProcessosService } from './processos.service';
 import { AtualizarProcessoDto } from './dto/atualizar-processo.dto';
+import { AuditoriaService } from '../auditoria/auditoria.service';
+import { CurrentUser, UsuarioAutenticado } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('processos')
 @ApiHeader({ name: 'x-tenant-id', required: true })
@@ -15,6 +17,7 @@ export class ProcessosController {
     @InjectModel(Processo.name) private readonly processoModel: Model<Processo>,
     private readonly datajud: DatajudConnectorService,
     private readonly processosService: ProcessosService,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
 
   @Get()
@@ -88,13 +91,16 @@ export class ProcessosController {
     @Headers('x-tenant-id') tenantId: string,
     @Param('numeroCnj') numeroCnj: string,
     @Body() dto: AtualizarProcessoDto,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ) {
     const processo = await this.processoModel.findOneAndUpdate(
       { tenant_id: new Types.ObjectId(tenantId), numero_cnj: numeroCnj.replace(/\D/g, '') },
       { $set: dto },
       { new: true },
     );
-    return processo ?? { erro: 'processo nao encontrado' };
+    if (!processo) return { erro: 'processo nao encontrado' };
+    this.auditoriaService.registrar(usuario, 'atualizar', 'processo', processo.numero_cnj);
+    return processo;
   }
 
   @Post(':numeroCnj/enriquecer')

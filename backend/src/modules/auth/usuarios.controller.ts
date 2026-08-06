@@ -7,6 +7,7 @@ import { ConvidarUsuarioDto } from './dto/convidar-usuario.dto';
 import { CurrentUser, UsuarioAutenticado } from './decorators/current-user.decorator';
 import { Permissao } from './decorators/permissao.decorator';
 import { PermissaoGuard } from './guards/permissao.guard';
+import { AuditoriaService } from '../auditoria/auditoria.service';
 
 @ApiTags('usuarios')
 @Controller('usuarios')
@@ -14,6 +15,7 @@ export class UsuariosController {
   constructor(
     private readonly usuariosService: UsuariosService,
     private readonly authService: AuthService,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
 
   @Get()
@@ -27,7 +29,9 @@ export class UsuariosController {
   @Permissao('equipe.gerenciar')
   @ApiOperation({ summary: 'Convida (cria) um novo usuario no escritorio - admin ou permissao equipe.gerenciar' })
   async convidar(@CurrentUser() usuario: UsuarioAutenticado, @Body() dto: ConvidarUsuarioDto) {
-    return this.authService.criarUsuarioParaTenant(new Types.ObjectId(usuario.tenantId), dto);
+    const criado = await this.authService.criarUsuarioParaTenant(new Types.ObjectId(usuario.tenantId), dto);
+    this.auditoriaService.registrar(usuario, 'criar', 'usuario', String(criado._id), criado.email);
+    return criado;
   }
 
   @Patch(':id')
@@ -39,7 +43,9 @@ export class UsuariosController {
     @Param('id') id: string,
     @Body() dto: { nome?: string; perfil?: string; oab?: string; status?: string; grupo_id?: string | null; time_id?: string | null },
   ) {
-    return this.usuariosService.atualizar(new Types.ObjectId(usuario.tenantId), new Types.ObjectId(id), dto);
+    const atualizado = await this.usuariosService.atualizar(new Types.ObjectId(usuario.tenantId), new Types.ObjectId(id), dto);
+    this.auditoriaService.registrar(usuario, 'atualizar', 'usuario', id);
+    return atualizado;
   }
 
   @Delete(':id')
@@ -47,6 +53,8 @@ export class UsuariosController {
   @Permissao('equipe.gerenciar')
   @ApiOperation({ summary: 'Desativa um usuario (soft delete) - admin ou permissao equipe.gerenciar' })
   async remover(@CurrentUser() usuario: UsuarioAutenticado, @Param('id') id: string) {
-    return this.usuariosService.remover(new Types.ObjectId(usuario.tenantId), new Types.ObjectId(id));
+    const resultado = await this.usuariosService.remover(new Types.ObjectId(usuario.tenantId), new Types.ObjectId(id));
+    this.auditoriaService.registrar(usuario, 'excluir', 'usuario', id);
+    return resultado;
   }
 }

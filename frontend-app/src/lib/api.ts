@@ -197,6 +197,24 @@ export function buscarTenant() {
   return request<Tenant>('/auth/tenant');
 }
 
+export type LogAuditoria = {
+  _id: string;
+  usuario_email: string;
+  acao: 'criar' | 'atualizar' | 'excluir';
+  entidade: 'cliente' | 'processo' | 'lancamento' | 'usuario' | 'tarefa';
+  entidade_id: string;
+  descricao?: string;
+  created_at: string;
+};
+
+export function listarAuditoria(filtros: { entidade?: string; usuarioEmail?: string } = {}) {
+  const params = new URLSearchParams();
+  if (filtros.entidade) params.set('entidade', filtros.entidade);
+  if (filtros.usuarioEmail) params.set('usuarioEmail', filtros.usuarioEmail);
+  const query = params.toString();
+  return request<LogAuditoria[]>(`/auditoria${query ? `?${query}` : ''}`);
+}
+
 export function exportarMeusDados() {
   return request<{
     geradoEm: string;

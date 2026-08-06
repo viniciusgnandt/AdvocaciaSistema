@@ -4,17 +4,25 @@ import { Types } from 'mongoose';
 import { FinanceiroService } from './financeiro.service';
 import { CriarLancamentoDto } from './dto/criar-lancamento.dto';
 import { AtualizarLancamentoDto } from './dto/atualizar-lancamento.dto';
+import { AuditoriaService } from '../auditoria/auditoria.service';
+import { CurrentUser, UsuarioAutenticado } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('financeiro')
 @ApiHeader({ name: 'x-tenant-id', required: true })
 @Controller('financeiro')
 export class FinanceiroController {
-  constructor(private readonly financeiroService: FinanceiroService) {}
+  constructor(
+    private readonly financeiroService: FinanceiroService,
+    private readonly auditoriaService: AuditoriaService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Cria um lancamento (receita ou despesa)' })
-  async criar(@Headers('x-tenant-id') tenantId: string, @Body() dto: CriarLancamentoDto) {
-    return this.financeiroService.criar(new Types.ObjectId(tenantId), dto);
+  async criar(@Headers('x-tenant-id') tenantId: string, @Body() dto: CriarLancamentoDto, @CurrentUser() usuario: UsuarioAutenticado) {
+    const resultado = await this.financeiroService.criar(new Types.ObjectId(tenantId), dto);
+    const primeiro = Array.isArray(resultado) ? resultado[0] : resultado;
+    this.auditoriaService.registrar(usuario, 'criar', 'lancamento', String(primeiro._id), primeiro.descricao);
+    return resultado;
   }
 
   @Get()
@@ -42,8 +50,11 @@ export class FinanceiroController {
     @Headers('x-tenant-id') tenantId: string,
     @Param('id') id: string,
     @Body() dto: AtualizarLancamentoDto,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ) {
-    return this.financeiroService.atualizar(new Types.ObjectId(tenantId), new Types.ObjectId(id), dto);
+    const lancamento = await this.financeiroService.atualizar(new Types.ObjectId(tenantId), new Types.ObjectId(id), dto);
+    if (lancamento) this.auditoriaService.registrar(usuario, 'atualizar', 'lancamento', id, lancamento.descricao);
+    return lancamento;
   }
 
   @Delete(':id')
@@ -52,8 +63,10 @@ export class FinanceiroController {
     @Headers('x-tenant-id') tenantId: string,
     @Param('id') id: string,
     @Query('todasParcelas') todasParcelas?: string,
+    @CurrentUser() usuario?: UsuarioAutenticado,
   ) {
     const ok = await this.financeiroService.excluir(new Types.ObjectId(tenantId), new Types.ObjectId(id), todasParcelas === 'true');
+    if (ok && usuario) this.auditoriaService.registrar(usuario, 'excluir', 'lancamento', id);
     return ok ? { ok: true } : { erro: 'lancamento nao encontrado' };
   }
 }

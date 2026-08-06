@@ -18,6 +18,7 @@ import { TimesService } from './times.service';
 import { TimesController } from './times.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AuditoriaModule } from '../auditoria/auditoria.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
       { name: Grupo.name, schema: GrupoSchema },
       { name: TimeTrabalho.name, schema: TimeTrabalhoSchema },
     ]),
+    AuditoriaModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

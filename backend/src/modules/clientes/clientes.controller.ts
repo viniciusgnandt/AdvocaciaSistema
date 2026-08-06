@@ -4,17 +4,24 @@ import { Types } from 'mongoose';
 import { ClientesService } from './clientes.service';
 import { CriarClienteDto } from './dto/criar-cliente.dto';
 import { AtualizarClienteDto } from './dto/atualizar-cliente.dto';
+import { AuditoriaService } from '../auditoria/auditoria.service';
+import { CurrentUser, UsuarioAutenticado } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('clientes')
 @ApiHeader({ name: 'x-tenant-id', required: true })
 @Controller('clientes')
 export class ClientesController {
-  constructor(private readonly clientesService: ClientesService) {}
+  constructor(
+    private readonly clientesService: ClientesService,
+    private readonly auditoriaService: AuditoriaService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Cadastra um cliente e vincula automaticamente processos com o mesmo nome de parte' })
-  async criar(@Headers('x-tenant-id') tenantId: string, @Body() dto: CriarClienteDto) {
-    return this.clientesService.criar(new Types.ObjectId(tenantId), dto);
+  async criar(@Headers('x-tenant-id') tenantId: string, @Body() dto: CriarClienteDto, @CurrentUser() usuario: UsuarioAutenticado) {
+    const cliente = await this.clientesService.criar(new Types.ObjectId(tenantId), dto);
+    this.auditoriaService.registrar(usuario, 'criar', 'cliente', String(cliente._id), cliente.nome);
+    return cliente;
   }
 
   @Get()
@@ -76,15 +83,20 @@ export class ClientesController {
     @Headers('x-tenant-id') tenantId: string,
     @Param('id') id: string,
     @Body() dto: AtualizarClienteDto,
+    @CurrentUser() usuario: UsuarioAutenticado,
   ) {
     const cliente = await this.clientesService.atualizar(new Types.ObjectId(tenantId), new Types.ObjectId(id), dto);
-    return cliente ?? { erro: 'cliente nao encontrado' };
+    if (!cliente) return { erro: 'cliente nao encontrado' };
+    this.auditoriaService.registrar(usuario, 'atualizar', 'cliente', id, cliente.nome);
+    return cliente;
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Remove um cliente (desfaz o vinculo nos processos, mas nao apaga os processos)' })
-  async excluir(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string) {
+  async excluir(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string, @CurrentUser() usuario: UsuarioAutenticado) {
+    const cliente = await this.clientesService.buscar(new Types.ObjectId(tenantId), new Types.ObjectId(id));
     const ok = await this.clientesService.excluir(new Types.ObjectId(tenantId), new Types.ObjectId(id));
+    if (ok) this.auditoriaService.registrar(usuario, 'excluir', 'cliente', id, cliente?.nome);
     return ok ? { ok: true } : { erro: 'cliente nao encontrado' };
   }
 }

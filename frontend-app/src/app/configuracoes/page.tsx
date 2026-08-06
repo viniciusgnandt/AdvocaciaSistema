@@ -9,6 +9,7 @@ import {
   KeyRound,
   Moon,
   Palette,
+  ShieldCheck,
   Sun,
   UserCircle,
   Users as UsersIcon,
@@ -24,15 +25,17 @@ import {
   buscarPerfil,
   buscarTenant,
   exportarMeusDados,
+  listarAuditoria,
   salvarSessao,
   tenantLogado,
   usuarioLogado,
   type PerfilUsuario,
+  type LogAuditoria,
   type Tenant,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
-type SecaoConfig = 'conta' | 'escritorio' | 'equipe' | 'aparencia' | 'sobre';
+type SecaoConfig = 'conta' | 'escritorio' | 'equipe' | 'auditoria' | 'aparencia' | 'sobre';
 
 const LABEL_PERFIL: Record<PerfilUsuario, string> = { admin: 'Admin', advogado: 'Advogado(a)', assistente: 'Assistente' };
 
@@ -45,6 +48,7 @@ export default function ConfiguracoesPage() {
     { id: 'conta', icon: UserCircle, label: 'Conta', adminOnly: false },
     { id: 'escritorio', icon: Building2, label: 'Escritório', adminOnly: true },
     { id: 'equipe', icon: UsersIcon, label: 'Equipe', adminOnly: true },
+    { id: 'auditoria', icon: ShieldCheck, label: 'Auditoria', adminOnly: true },
     { id: 'aparencia', icon: Palette, label: 'Aparência', adminOnly: false },
     { id: 'sobre', icon: Info, label: 'Sobre', adminOnly: false },
   ];
@@ -80,6 +84,7 @@ export default function ConfiguracoesPage() {
             {secao === 'conta' && <ContaSecao />}
             {secao === 'escritorio' && ehAdmin && <EscritorioSecao />}
             {secao === 'equipe' && ehAdmin && <EquipeAba />}
+            {secao === 'auditoria' && ehAdmin && <AuditoriaSecao />}
             {secao === 'aparencia' && <AparenciaSecao />}
             {secao === 'sobre' && <SobreSecao />}
           </div>
@@ -337,6 +342,75 @@ const STATUS_LABEL: Record<string, { label: string; cor: string }> = {
   suspenso: { label: 'Suspenso', cor: 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800' },
   cancelado: { label: 'Cancelado', cor: 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800' },
 };
+
+const LABEL_ACAO: Record<string, string> = { criar: 'Criou', atualizar: 'Atualizou', excluir: 'Excluiu' };
+const LABEL_ENTIDADE: Record<string, string> = {
+  cliente: 'cliente',
+  processo: 'processo',
+  lancamento: 'lançamento',
+  usuario: 'usuário',
+  tarefa: 'tarefa',
+};
+const COR_ACAO: Record<string, string> = {
+  criar: 'text-green-600 dark:text-green-400',
+  atualizar: 'text-brand-600 dark:text-brand-400',
+  excluir: 'text-red-600 dark:text-red-400',
+};
+
+function AuditoriaSecao() {
+  const [logs, setLogs] = useState<LogAuditoria[]>([]);
+  const [entidadeFiltro, setEntidadeFiltro] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    listarAuditoria({ entidade: entidadeFiltro || undefined })
+      .then(setLogs)
+      .catch((err) => setErro(err instanceof Error ? err.message : 'erro ao carregar auditoria'))
+      .finally(() => setLoading(false));
+  }, [entidadeFiltro]);
+
+  return (
+    <Cartao titulo="Trilha de auditoria" subtitulo="Quem criou, editou ou excluiu registros neste escritório">
+      <div className="mb-4">
+        <select
+          value={entidadeFiltro}
+          onChange={(e) => setEntidadeFiltro(e.target.value)}
+          className="text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-700 dark:text-gray-300"
+        >
+          <option value="">Todos os tipos</option>
+          <option value="cliente">Clientes</option>
+          <option value="processo">Processos</option>
+          <option value="lancamento">Financeiro</option>
+          <option value="usuario">Usuários</option>
+        </select>
+      </div>
+
+      {erro && <p className="text-sm text-red-600 dark:text-red-400 mb-3">{erro}</p>}
+
+      {loading ? (
+        <p className="text-sm text-gray-400">Carregando…</p>
+      ) : logs.length === 0 ? (
+        <p className="text-sm text-gray-400">Nenhum registro de auditoria ainda.</p>
+      ) : (
+        <ul className="space-y-2 max-h-[28rem] overflow-y-auto">
+          {logs.map((log) => (
+            <li key={log._id} className="flex items-center gap-3 rounded-lg border border-gray-100 dark:border-gray-800 px-3 py-2.5 text-sm">
+              <span className={cn('font-medium shrink-0', COR_ACAO[log.acao])}>{LABEL_ACAO[log.acao] ?? log.acao}</span>
+              <span className="text-gray-600 dark:text-gray-300 truncate flex-1">
+                {LABEL_ENTIDADE[log.entidade] ?? log.entidade}
+                {log.descricao ? ` — ${log.descricao}` : ''}
+              </span>
+              <span className="text-xs text-gray-400 shrink-0">{log.usuario_email}</span>
+              <span className="text-xs text-gray-400 shrink-0">{new Date(log.created_at).toLocaleString('pt-BR')}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Cartao>
+  );
+}
 
 function EscritorioSecao() {
   const [tenant, setTenant] = useState<Tenant | null>(null);
