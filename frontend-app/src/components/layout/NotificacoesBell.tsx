@@ -2,23 +2,26 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, Bell, CheckSquare } from 'lucide-react';
-import { listarPublicacoes, listarTarefas, type Publicacao, type Tarefa } from '@/lib/api';
+import { AlertTriangle, Bell, CheckSquare, Gavel } from 'lucide-react';
+import { listarPublicacoes, listarProcessos, listarTarefas, type Publicacao, type Tarefa } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
 type Notificacao = {
   id: string;
-  tipo: 'publicacao' | 'tarefa';
+  tipo: 'publicacao' | 'tarefa' | 'processo_esquecido';
   titulo: string;
   subtitulo: string;
   destino: string;
   critica: boolean;
 };
 
+const DIAS_PROCESSO_ESQUECIDO = 60;
+
 async function carregarNotificacoes(): Promise<Notificacao[]> {
-  const [publicacoesResp, tarefas] = await Promise.all([
+  const [publicacoesResp, tarefas, processosResp] = await Promise.all([
     listarPublicacoes({ status: 'nao_lida', urgencia: 'critica', limite: 8 }),
     listarTarefas({ atrasadas: true }),
+    listarProcessos({ status: 'ativo' }),
   ]);
 
   const doPublicacoes: Notificacao[] = publicacoesResp.itens.map((p: Publicacao) => ({
@@ -39,7 +42,25 @@ async function carregarNotificacoes(): Promise<Notificacao[]> {
     critica: false,
   }));
 
-  return [...doPublicacoes, ...doTarefas];
+  const agora = Date.now();
+  const doProcessosEsquecidos: Notificacao[] = processosResp.itens
+    .filter((p) => {
+      if (p.proxima_audiencia && new Date(p.proxima_audiencia).getTime() > agora) return false;
+      if (!p.datajud_atualizado_em) return false;
+      const dias = (agora - new Date(p.datajud_atualizado_em).getTime()) / 86_400_000;
+      return dias > DIAS_PROCESSO_ESQUECIDO;
+    })
+    .slice(0, 8)
+    .map((p) => ({
+      id: `proc-${p._id}`,
+      tipo: 'processo_esquecido' as const,
+      titulo: p.parte_ativa ? `${p.parte_ativa}${p.parte_passiva ? ` x ${p.parte_passiva}` : ''}` : p.numero_cnj,
+      subtitulo: `Sem movimentação há mais de ${DIAS_PROCESSO_ESQUECIDO} dias`,
+      destino: `/processos?numero=${p.numero_cnj}`,
+      critica: false,
+    }));
+
+  return [...doPublicacoes, ...doProcessosEsquecidos, ...doTarefas];
 }
 
 export function NotificacoesBell() {
@@ -108,7 +129,13 @@ export function NotificacoesBell() {
                       n.critica ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
                     )}
                   >
-                    {n.tipo === 'publicacao' ? <AlertTriangle size={12} /> : <CheckSquare size={12} />}
+                    {n.tipo === 'publicacao' ? (
+                      <AlertTriangle size={12} />
+                    ) : n.tipo === 'processo_esquecido' ? (
+                      <Gavel size={12} />
+                    ) : (
+                      <CheckSquare size={12} />
+                    )}
                   </span>
                   <div className="min-w-0">
                     <p className="text-sm text-gray-800 dark:text-gray-200 truncate">{n.titulo}</p>
