@@ -68,4 +68,10 @@ export class AtualizarProcessoDto {
   @IsOptional()
   @IsString()
   responsavel_id?: string;
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
 }

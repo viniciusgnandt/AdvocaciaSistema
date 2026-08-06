@@ -418,6 +418,7 @@ export type Processo = {
   observacoes?: string;
   honorarios?: Honorarios;
   responsavel_id?: string;
+  tags: string[];
 };
 
 export type AtualizarProcesso = {
@@ -427,6 +428,7 @@ export type AtualizarProcesso = {
   honorarios?: Honorarios;
   status?: string;
   responsavel_id?: string;
+  tags?: string[];
 };
 
 export type FiltrosProcessos = {
@@ -435,11 +437,12 @@ export type FiltrosProcessos = {
   status?: string;
   busca?: string;
   ordenacao?: string;
+  tag?: string;
 };
 
 export type ListaProcessosResposta = {
   itens: Processo[];
-  filtrosDisponiveis: { tribunais: string[]; classes: string[] };
+  filtrosDisponiveis: { tribunais: string[]; classes: string[]; tags: string[] };
 };
 
 export function listarProcessos(filtros: FiltrosProcessos = {}) {

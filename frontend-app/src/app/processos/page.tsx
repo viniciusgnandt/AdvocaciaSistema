@@ -67,7 +67,7 @@ function capitalizarNome(nome: string) {
 }
 
 function temFiltroAtivo(filtros: FiltrosProcessos) {
-  return !!(filtros.tribunal || filtros.classe || filtros.status || filtros.busca);
+  return !!(filtros.tribunal || filtros.classe || filtros.status || filtros.busca || filtros.tag);
 }
 
 function tituloPartes(processo: Processo) {
@@ -94,6 +94,7 @@ function ProcessosPageConteudo() {
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [tribunais, setTribunais] = useState<string[]>([]);
   const [classes, setClasses] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
   const [selecionado, setSelecionado] = useState<Processo | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -108,6 +109,7 @@ function ProcessosPageConteudo() {
       setProcessos(resposta.itens);
       setTribunais(resposta.filtrosDisponiveis.tribunais);
       setClasses(resposta.filtrosDisponiveis.classes);
+      setTags(resposta.filtrosDisponiveis.tags);
       const alvo = numeroBuscado ? resposta.itens.find((p) => p.numero_cnj === numeroBuscado) : undefined;
       setSelecionado((atual) => {
         const atualAindaVisivel = atual && resposta.itens.some((p) => p._id === atual._id);
@@ -169,7 +171,7 @@ function ProcessosPageConteudo() {
 
         <div className="flex items-center gap-3 mb-3">
           <div className="flex-1 min-w-0">
-            <FiltroProcessos filtros={filtros} onChange={setFiltros} tribunais={tribunais} classes={classes} />
+            <FiltroProcessos filtros={filtros} onChange={setFiltros} tribunais={tribunais} classes={classes} tags={tags} />
           </div>
           {processos.length > 0 && (
             <button
@@ -364,6 +366,8 @@ function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtu
         <InfoCard icon={DollarSign} label="Valor da causa" valor={formatarMoeda(processo.valor_causa) ?? undefined} />
       </div>
 
+      <TagsProcesso processo={processo} onAtualizado={onAtualizado} />
+
       <div className="rounded-lg border border-gray-100 dark:border-gray-800 p-4">
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 flex items-center gap-1">
@@ -506,6 +510,66 @@ function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtu
           onFechar={() => setApresentando(false)}
         />
       )}
+    </div>
+  );
+}
+
+function TagsProcesso({ processo, onAtualizado }: { processo: Processo; onAtualizado: (p: Processo) => void }) {
+  const [novaTag, setNovaTag] = useState('');
+  const [salvando, setSalvando] = useState(false);
+
+  const salvarTags = async (tags: string[]) => {
+    setSalvando(true);
+    try {
+      const atualizado = await atualizarProcesso(processo.numero_cnj, { tags });
+      onAtualizado(atualizado);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const adicionar = () => {
+    const valor = novaTag.trim();
+    if (!valor || processo.tags.includes(valor)) {
+      setNovaTag('');
+      return;
+    }
+    setNovaTag('');
+    salvarTags([...processo.tags, valor]);
+  };
+
+  const remover = (tag: string) => {
+    salvarTags(processo.tags.filter((t) => t !== tag));
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <Tag size={12} className="text-gray-300 dark:text-gray-600 shrink-0" />
+      {processo.tags.map((tag) => (
+        <span
+          key={tag}
+          className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 border border-brand-200 dark:border-brand-800"
+        >
+          {tag}
+          <button onClick={() => remover(tag)} disabled={salvando} className="hover:text-red-600 dark:hover:text-red-400">
+            <X size={10} />
+          </button>
+        </span>
+      ))}
+      <input
+        value={novaTag}
+        onChange={(e) => setNovaTag(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            adicionar();
+          }
+        }}
+        onBlur={adicionar}
+        placeholder="+ tag"
+        disabled={salvando}
+        className="w-20 text-xs bg-transparent outline-none text-gray-500 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600"
+      />
     </div>
   );
 }
@@ -914,11 +978,13 @@ function FiltroProcessos({
   onChange,
   tribunais,
   classes,
+  tags,
 }: {
   filtros: FiltrosProcessos;
   onChange: (f: FiltrosProcessos) => void;
   tribunais: string[];
   classes: string[];
+  tags: string[];
 }) {
   const set = (parcial: Partial<FiltrosProcessos>) => onChange({ ...filtros, ...parcial });
 
@@ -987,6 +1053,21 @@ function FiltroProcessos({
           </option>
         ))}
       </select>
+
+      {tags.length > 0 && (
+        <select
+          value={filtros.tag ?? ''}
+          onChange={(e) => set({ tag: e.target.value })}
+          className="text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-2.5 py-1.5 text-gray-700 dark:text-gray-300 max-w-[160px]"
+        >
+          <option value="">Todas as tags</option>
+          {tags.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      )}
 
       {temFiltroAtivo(filtros) && (
         <button

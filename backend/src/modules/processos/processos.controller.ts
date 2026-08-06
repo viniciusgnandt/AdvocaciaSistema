@@ -33,11 +33,13 @@ export class ProcessosController {
     @Query('status') status?: string,
     @Query('busca') busca?: string,
     @Query('ordenacao') ordenacao?: string,
+    @Query('tag') tag?: string,
   ) {
     const tenant = new Types.ObjectId(tenantId);
     const filtro: Record<string, unknown> = { tenant_id: tenant };
     if (tribunal) filtro.tribunal = tribunal;
     if (classe) filtro.classe = classe;
+    if (tag) filtro.tags = tag;
     if (busca) {
       const regex = { $regex: escapeRegex(busca), $options: 'i' };
       filtro.$or = [{ numero_cnj: regex }, { parte_ativa: regex }, { parte_passiva: regex }];
@@ -64,10 +66,11 @@ export class ProcessosController {
     };
     const sort = ordens[ordenacao ?? 'recentes'] ?? ordens.recentes;
 
-    const [itens, tribunaisDisponiveis, classesDisponiveis] = await Promise.all([
+    const [itens, tribunaisDisponiveis, classesDisponiveis, tagsDisponiveis] = await Promise.all([
       this.processoModel.find(filtro).sort(sort).exec(),
       this.processoModel.distinct('tribunal', { tenant_id: tenant }),
       this.processoModel.distinct('classe', { tenant_id: tenant }),
+      this.processoModel.distinct('tags', { tenant_id: tenant }),
     ]);
 
     return {
@@ -75,6 +78,7 @@ export class ProcessosController {
       filtrosDisponiveis: {
         tribunais: tribunaisDisponiveis.filter(Boolean).sort(),
         classes: classesDisponiveis.filter(Boolean).sort(),
+        tags: (tagsDisponiveis as unknown as string[]).filter(Boolean).sort(),
       },
     };
   }

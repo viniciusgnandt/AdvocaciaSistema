@@ -122,6 +122,11 @@ export class Processo extends Document {
   // socio (carga de trabalho por pessoa) e, futuramente, em permissao por carteira
   @Prop({ type: Types.ObjectId, index: true })
   responsavel_id?: Types.ObjectId;
+
+  // tags livres do advogado (ex.: "prioridade", "cliente vip") - distintas de
+  // "assuntos", que vem do DataJud
+  @Prop({ type: [String], default: [], index: true })
+  tags: string[];
 }
 
 export const ProcessoSchema = SchemaFactory.createForClass(Processo);
