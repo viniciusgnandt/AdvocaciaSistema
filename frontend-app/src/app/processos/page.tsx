@@ -184,6 +184,10 @@ function ProcessosPageConteudo() {
                   )}
                 >
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate flex items-center gap-1.5">
+                    {(() => {
+                      const saude = saudeProcesso(p);
+                      return saude ? <span className={cn('shrink-0 w-2 h-2 rounded-full', saude.cor)} title={saude.titulo} /> : null;
+                    })()}
                     <span className="truncate">{tituloPartes(p) ?? formatarNumeroCnj(p.numero_cnj)}</span>
                     {p.provisorio && (
                       <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400" title="Provisório — aguardando DataJud" />
@@ -245,6 +249,25 @@ function ClienteVinculado({ clienteId }: { clienteId: string }) {
 function formatarNumeroCnj(numero: string) {
   if (numero.length !== 20) return numero;
   return `${numero.slice(0, 7)}-${numero.slice(7, 9)}.${numero.slice(9, 13)}.${numero.slice(13, 14)}.${numero.slice(14, 16)}.${numero.slice(16)}`;
+}
+
+/** Semaforo de saude do processo: vermelho = audiencia em ate 3 dias ou +90 dias sem
+ * atualizacao; amarelo = audiencia em ate 7 dias ou +45 dias sem atualizacao; verde = ok. */
+function saudeProcesso(p: Processo): { cor: string; titulo: string } | null {
+  if (p.status !== 'ativo') return null;
+  const agora = Date.now();
+
+  if (p.proxima_audiencia) {
+    const dias = (new Date(p.proxima_audiencia).getTime() - agora) / 86_400_000;
+    if (dias >= 0 && dias <= 3) return { cor: 'bg-red-500', titulo: 'Audiência em até 3 dias' };
+    if (dias > 3 && dias <= 7) return { cor: 'bg-amber-400', titulo: 'Audiência em até 7 dias' };
+  }
+  if (p.datajud_atualizado_em) {
+    const dias = (agora - new Date(p.datajud_atualizado_em).getTime()) / 86_400_000;
+    if (dias > 90) return { cor: 'bg-red-500', titulo: 'Sem atualização há mais de 90 dias' };
+    if (dias > 45) return { cor: 'bg-amber-400', titulo: 'Sem atualização há mais de 45 dias' };
+  }
+  return { cor: 'bg-green-500', titulo: 'Em dia' };
 }
 
 type AbaProcesso = 'timeline' | 'movimentacoes' | 'arquivos' | 'tarefas' | 'financeiro';
