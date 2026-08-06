@@ -16,6 +16,9 @@ export class Tenant extends Document {
 
   @Prop({ default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) })
   trial_expires_at: Date;
+
+  @Prop()
+  logo_key?: string;
 }
 
 export const TenantSchema = SchemaFactory.createForClass(Tenant);

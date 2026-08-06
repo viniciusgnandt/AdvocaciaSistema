@@ -39,8 +39,10 @@ export class Usuario extends Document {
   @Prop()
   ultimo_login?: Date;
 
+  // chave no bucket (S3/OCI) da foto de perfil - a URL exibida e' sempre gerada na hora
+  // (presigned, expira) a partir desta chave, nunca persistida
   @Prop()
-  foto_url?: string;
+  foto_key?: string;
 
   @Prop({ type: [String], default: [] })
   especialidades: string[];

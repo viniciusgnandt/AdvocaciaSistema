@@ -9,6 +9,7 @@ import { Grupo } from './schemas/grupo.schema';
 import { RegistrarEscritorioDto } from './dto/registrar-escritorio.dto';
 import { LoginDto } from './dto/login.dto';
 import { UsuarioAutenticado } from './decorators/current-user.decorator';
+import { StorageService } from '../storage/storage.service';
 
 const SALT_ROUNDS = 12;
 
@@ -19,7 +20,23 @@ export class AuthService {
     @InjectModel(Usuario.name) private readonly usuarioModel: Model<Usuario>,
     @InjectModel(Grupo.name) private readonly grupoModel: Model<Grupo>,
     private readonly jwt: JwtService,
+    private readonly storage: StorageService,
   ) {}
+
+  private async resolverUrl(chave?: string): Promise<string | undefined> {
+    if (!chave) return undefined;
+    return this.storage.gerarUrlDownload(chave, 3600);
+  }
+
+  private async comFotoUrl(usuario: Usuario) {
+    const foto_url = await this.resolverUrl(usuario.foto_key);
+    return Object.assign(usuario.toObject(), { foto_url });
+  }
+
+  private async comLogoUrl(tenant: Tenant) {
+    const logo_url = await this.resolverUrl(tenant.logo_key);
+    return Object.assign(tenant.toObject(), { logo_url });
+  }
 
   async registrarEscritorio(dto: RegistrarEscritorioDto) {
     const emailExistente = await this.usuarioModel.findOne({ email: dto.email.toLowerCase() });
@@ -98,25 +115,45 @@ export class AuthService {
   async buscarTenant(tenantId: Types.ObjectId) {
     const tenant = await this.tenantModel.findById(tenantId);
     if (!tenant) throw new NotFoundException('tenant nao encontrado');
-    return tenant;
+    return this.comLogoUrl(tenant);
   }
 
   async atualizarTenant(tenantId: Types.ObjectId, dto: { nome_escritorio?: string; cnpj?: string }) {
     const tenant = await this.tenantModel.findByIdAndUpdate(tenantId, { $set: dto }, { new: true });
     if (!tenant) throw new NotFoundException('tenant nao encontrado');
-    return tenant;
+    return this.comLogoUrl(tenant);
+  }
+
+  async atualizarLogoTenant(tenantId: Types.ObjectId, chave: string) {
+    const tenant = await this.tenantModel.findById(tenantId);
+    if (!tenant) throw new NotFoundException('tenant nao encontrado');
+    const chaveAntiga = tenant.logo_key;
+    tenant.logo_key = chave;
+    await tenant.save();
+    if (chaveAntiga) this.storage.excluir(chaveAntiga).catch(() => undefined);
+    return this.comLogoUrl(tenant);
   }
 
   async buscarUsuario(usuarioId: Types.ObjectId) {
     const usuario = await this.usuarioModel.findById(usuarioId);
     if (!usuario) throw new NotFoundException('usuario nao encontrado');
-    return usuario;
+    return this.comFotoUrl(usuario);
   }
 
-  async atualizarPerfil(usuarioId: Types.ObjectId, dto: { nome?: string; oab?: string; foto_url?: string; especialidades?: string[] }) {
+  async atualizarPerfil(usuarioId: Types.ObjectId, dto: { nome?: string; oab?: string; especialidades?: string[] }) {
     const usuario = await this.usuarioModel.findByIdAndUpdate(usuarioId, { $set: dto }, { new: true });
     if (!usuario) throw new NotFoundException('usuario nao encontrado');
-    return usuario;
+    return this.comFotoUrl(usuario);
+  }
+
+  async atualizarFotoUsuario(usuarioId: Types.ObjectId, chave: string) {
+    const usuario = await this.usuarioModel.findById(usuarioId);
+    if (!usuario) throw new NotFoundException('usuario nao encontrado');
+    const chaveAntiga = usuario.foto_key;
+    usuario.foto_key = chave;
+    await usuario.save();
+    if (chaveAntiga) this.storage.excluir(chaveAntiga).catch(() => undefined);
+    return this.comFotoUrl(usuario);
   }
 
   async alterarSenha(usuarioId: Types.ObjectId, senhaAtual: string, novaSenha: string) {

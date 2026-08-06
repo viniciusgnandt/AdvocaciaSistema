@@ -191,6 +191,7 @@ export type Tenant = {
   cnpj?: string;
   status: TenantStatus;
   trial_expires_at?: string;
+  logo_url?: string;
 };
 
 export function buscarTenant() {
@@ -233,8 +234,37 @@ export function buscarPerfil() {
   return request<Usuario>('/auth/perfil');
 }
 
-export function atualizarPerfil(dto: { nome?: string; oab?: string; foto_url?: string; especialidades?: string[] }) {
+export function atualizarPerfil(dto: { nome?: string; oab?: string; especialidades?: string[] }) {
   return request<Usuario>('/auth/perfil', { method: 'PATCH', body: JSON.stringify(dto) });
+}
+
+async function enviarArquivo<T>(path: string, arquivo: File): Promise<T> {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append('arquivo', arquivo);
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: formData,
+  });
+  if (res.status === 401) {
+    limparSessao();
+    if (typeof window !== 'undefined') window.location.href = '/login';
+    throw new Error('Sessão expirada, faça login novamente.');
+  }
+  if (!res.ok) {
+    const texto = await res.text().catch(() => '');
+    throw new Error(`API ${res.status}: ${texto || res.statusText}`);
+  }
+  return res.json();
+}
+
+export function enviarFotoPerfil(arquivo: File) {
+  return enviarArquivo<Usuario>('/auth/perfil/foto', arquivo);
+}
+
+export function enviarLogoEscritorio(arquivo: File) {
+  return enviarArquivo<Tenant>('/auth/tenant/logo', arquivo);
 }
 
 export function alterarSenha(senhaAtual: string, novaSenha: string) {

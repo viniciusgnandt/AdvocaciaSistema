@@ -37,10 +37,10 @@ export class StorageService {
     });
   }
 
-  montarChave(tenantId: string, nomeOriginal: string): string {
+  montarChave(tenantId: string, nomeOriginal: string, pasta = 'documentos'): string {
     const extensao = nomeOriginal.includes('.') ? nomeOriginal.split('.').pop() : undefined;
     const nomeUnico = `${randomUUID()}${extensao ? `.${extensao}` : ''}`;
-    return `tenant/${tenantId}/documentos/${nomeUnico}`;
+    return `tenant/${tenantId}/${pasta}/${nomeUnico}`;
   }
 
   async upload(chave: string, buffer: Buffer, mime: string): Promise<void> {

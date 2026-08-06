@@ -12,11 +12,6 @@ export class AtualizarPerfilDto {
   @IsString()
   oab?: string;
 
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  foto_url?: string;
-
   @ApiProperty({ required: false, type: [String] })
   @IsOptional()
   @IsArray()

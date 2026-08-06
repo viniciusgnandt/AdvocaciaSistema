@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { BadRequestException, Body, Controller, Get, Patch, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Types } from 'mongoose';
+import { memoryStorage } from 'multer';
 import { AuthService } from './auth.service';
 import { RegistrarEscritorioDto } from './dto/registrar-escritorio.dto';
 import { LoginDto } from './dto/login.dto';
@@ -11,11 +13,26 @@ import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
 import { RolesGuard } from './guards/roles.guard';
 import { CurrentUser, UsuarioAutenticado } from './decorators/current-user.decorator';
+import { StorageService } from '../storage/storage.service';
+
+const LIMITE_IMAGEM_BYTES = 5 * 1024 * 1024; // 5MB
+const MIMES_IMAGEM = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+
+const interceptorImagem = FileInterceptor('arquivo', {
+  storage: memoryStorage(),
+  limits: { fileSize: LIMITE_IMAGEM_BYTES },
+  fileFilter: (_req, file, callback) => {
+    callback(null, MIMES_IMAGEM.includes(file.mimetype));
+  },
+});
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly storage: StorageService,
+  ) {}
 
   @Public()
   @Post('registro')
@@ -61,6 +78,30 @@ export class AuthController {
   @ApiOperation({ summary: 'Atualiza nome/OAB do proprio usuario autenticado' })
   async atualizarPerfil(@CurrentUser() usuario: UsuarioAutenticado, @Body() dto: AtualizarPerfilDto) {
     return this.authService.atualizarPerfil(new Types.ObjectId(usuario.sub), dto);
+  }
+
+  @Post('perfil/foto')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Envia a foto de perfil do proprio usuario autenticado (PNG/JPEG/WEBP/GIF, ate 5MB)' })
+  @UseInterceptors(interceptorImagem)
+  async enviarFotoPerfil(@CurrentUser() usuario: UsuarioAutenticado, @UploadedFile() arquivo?: Express.Multer.File) {
+    if (!arquivo) throw new BadRequestException('envie uma imagem valida (PNG, JPEG, WEBP ou GIF) no campo "arquivo"');
+    const chave = this.storage.montarChave(usuario.tenantId, arquivo.originalname, 'perfil');
+    await this.storage.upload(chave, arquivo.buffer, arquivo.mimetype);
+    return this.authService.atualizarFotoUsuario(new Types.ObjectId(usuario.sub), chave);
+  }
+
+  @Post('tenant/logo')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Envia o logo do escritorio (PNG/JPEG/WEBP/GIF, ate 5MB) - somente admin' })
+  @UseInterceptors(interceptorImagem)
+  async enviarLogoEscritorio(@CurrentUser() usuario: UsuarioAutenticado, @UploadedFile() arquivo?: Express.Multer.File) {
+    if (!arquivo) throw new BadRequestException('envie uma imagem valida (PNG, JPEG, WEBP ou GIF) no campo "arquivo"');
+    const chave = this.storage.montarChave(usuario.tenantId, arquivo.originalname, 'escritorio');
+    await this.storage.upload(chave, arquivo.buffer, arquivo.mimetype);
+    return this.authService.atualizarLogoTenant(new Types.ObjectId(usuario.tenantId), chave);
   }
 
   @Patch('senha')

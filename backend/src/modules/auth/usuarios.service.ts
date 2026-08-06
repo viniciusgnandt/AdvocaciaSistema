@@ -2,13 +2,23 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Usuario } from './schemas/usuario.schema';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class UsuariosService {
-  constructor(@InjectModel(Usuario.name) private readonly usuarioModel: Model<Usuario>) {}
+  constructor(
+    @InjectModel(Usuario.name) private readonly usuarioModel: Model<Usuario>,
+    private readonly storage: StorageService,
+  ) {}
 
   async listar(tenantId: Types.ObjectId) {
-    return this.usuarioModel.find({ tenant_id: tenantId }).sort({ nome: 1 }).exec();
+    const usuarios = await this.usuarioModel.find({ tenant_id: tenantId }).sort({ nome: 1 }).exec();
+    return Promise.all(
+      usuarios.map(async (u) => {
+        const foto_url = u.foto_key ? await this.storage.gerarUrlDownload(u.foto_key, 3600) : undefined;
+        return Object.assign(u.toObject(), { foto_url });
+      }),
+    );
   }
 
   async atualizar(

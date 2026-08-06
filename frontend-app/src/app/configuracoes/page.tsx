@@ -26,6 +26,8 @@ import {
   atualizarTenant,
   buscarPerfil,
   buscarTenant,
+  enviarFotoPerfil,
+  enviarLogoEscritorio,
   exportarMeusDados,
   listarAuditoria,
   salvarSessao,
@@ -114,6 +116,8 @@ function ContaSecao() {
   const [nome, setNome] = useState(sessao?.nome ?? '');
   const [oab, setOab] = useState(sessao?.oab ?? '');
   const [fotoUrl, setFotoUrl] = useState(sessao?.foto_url ?? '');
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const [erroFoto, setErroFoto] = useState<string | null>(null);
   const [especialidades, setEspecialidades] = useState<string[]>([]);
   const [novaEspecialidade, setNovaEspecialidade] = useState('');
   const [salvandoPerfil, setSalvandoPerfil] = useState(false);
@@ -122,9 +126,31 @@ function ContaSecao() {
 
   useEffect(() => {
     buscarPerfil()
-      .then((u) => setEspecialidades(u.especialidades ?? []))
+      .then((u) => {
+        setEspecialidades(u.especialidades ?? []);
+        if (u.foto_url) setFotoUrl(u.foto_url);
+      })
       .catch(() => undefined);
   }, []);
+
+  const escolherFoto = async (arquivo: File | undefined) => {
+    if (!arquivo) return;
+    setEnviandoFoto(true);
+    setErroFoto(null);
+    try {
+      const atualizado = await enviarFotoPerfil(arquivo);
+      setFotoUrl(atualizado.foto_url ?? '');
+      const tenant = tenantLogado();
+      const token = localStorage.getItem('trilva_token');
+      if (tenant && token && sessao) {
+        salvarSessao({ token, usuario: { ...sessao, foto_url: atualizado.foto_url }, tenant });
+      }
+    } catch (err) {
+      setErroFoto(err instanceof Error ? err.message : 'erro ao enviar foto');
+    } finally {
+      setEnviandoFoto(false);
+    }
+  };
 
   const adicionarEspecialidade = () => {
     const valor = novaEspecialidade.trim();
@@ -144,7 +170,7 @@ function ContaSecao() {
     setErroPerfil(null);
     setOkPerfil(false);
     try {
-      await atualizarPerfil({ nome, oab: oab || undefined, foto_url: fotoUrl || undefined, especialidades });
+      await atualizarPerfil({ nome, oab: oab || undefined, especialidades });
       const tenant = tenantLogado();
       const token = localStorage.getItem('trilva_token');
       if (tenant && token) {
@@ -193,15 +219,21 @@ function ContaSecao() {
                 {nome.charAt(0).toUpperCase() || '—'}
               </div>
             )}
-            <label className="block flex-1">
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">URL da foto</span>
-              <input
-                value={fotoUrl}
-                onChange={(e) => setFotoUrl(e.target.value)}
-                placeholder="https://…"
-                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
-              />
-            </label>
+            <div className="flex-1">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Foto de perfil</span>
+              <label className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+                {enviandoFoto ? 'Enviando…' : 'Escolher imagem'}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={(e) => escolherFoto(e.target.files?.[0])}
+                  disabled={enviandoFoto}
+                  className="hidden"
+                />
+              </label>
+              <p className="text-[11px] text-gray-400 mt-1">PNG, JPEG, WEBP ou GIF — até 5MB</p>
+              {erroFoto && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{erroFoto}</p>}
+            </div>
           </div>
 
           <label className="block">
@@ -424,6 +456,8 @@ function EscritorioSecao() {
   const [salvando, setSalvando] = useState(false);
   const [ok, setOk] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [enviandoLogo, setEnviandoLogo] = useState(false);
+  const [erroLogo, setErroLogo] = useState<string | null>(null);
 
   useEffect(() => {
     buscarTenant()
@@ -435,6 +469,20 @@ function EscritorioSecao() {
       .catch((err) => setErro(err instanceof Error ? err.message : 'erro ao carregar escritório'))
       .finally(() => setLoading(false));
   }, []);
+
+  const escolherLogo = async (arquivo: File | undefined) => {
+    if (!arquivo) return;
+    setEnviandoLogo(true);
+    setErroLogo(null);
+    try {
+      const atualizado = await enviarLogoEscritorio(arquivo);
+      setTenant(atualizado);
+    } catch (err) {
+      setErroLogo(err instanceof Error ? err.message : 'erro ao enviar logo');
+    } finally {
+      setEnviandoLogo(false);
+    }
+  };
 
   const salvar = async () => {
     setSalvando(true);
@@ -475,6 +523,32 @@ function EscritorioSecao() {
               Teste expira em {new Date(tenant.trial_expires_at).toLocaleDateString('pt-BR')}
             </p>
           )}
+
+          <div className="flex items-center gap-4">
+            {tenant?.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={tenant.logo_url} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0 border border-gray-100 dark:border-gray-800" />
+            ) : (
+              <div className="w-14 h-14 rounded-xl bg-brand-600 flex items-center justify-center text-white text-lg font-bold shrink-0">
+                {nomeEscritorio.charAt(0).toUpperCase() || '—'}
+              </div>
+            )}
+            <div className="flex-1">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Logo do escritório</span>
+              <label className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+                {enviandoLogo ? 'Enviando…' : 'Escolher imagem'}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={(e) => escolherLogo(e.target.files?.[0])}
+                  disabled={enviandoLogo}
+                  className="hidden"
+                />
+              </label>
+              <p className="text-[11px] text-gray-400 mt-1">PNG, JPEG, WEBP ou GIF — até 5MB</p>
+              {erroLogo && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{erroLogo}</p>}
+            </div>
+          </div>
 
           <label className="block">
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Nome do escritório</span>
