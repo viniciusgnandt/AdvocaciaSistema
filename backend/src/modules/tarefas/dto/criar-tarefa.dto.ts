@@ -34,4 +34,9 @@ export class CriarTarefaDto {
   @IsOptional()
   @IsString()
   responsavel_id?: string;
+
+  @ApiProperty({ required: false, enum: ['diaria', 'semanal', 'mensal', 'anual'] })
+  @IsOptional()
+  @IsIn(['diaria', 'semanal', 'mensal', 'anual'])
+  recorrencia?: 'diaria' | 'semanal' | 'mensal' | 'anual';
 }

@@ -613,6 +613,8 @@ export function excluirCliente(id: string) {
 
 export type StatusTarefa = 'pendente' | 'em_andamento' | 'concluida' | 'atrasada';
 
+export type FrequenciaRecorrencia = 'diaria' | 'semanal' | 'mensal' | 'anual';
+
 export type Tarefa = {
   _id: string;
   titulo: string;
@@ -625,6 +627,7 @@ export type Tarefa = {
   status: StatusTarefa;
   origem: 'manual' | 'prazo_publicacao' | 'audiencia_publicacao';
   concluida_em?: string;
+  recorrencia?: FrequenciaRecorrencia;
 };
 
 export type MetricaMeta = 'faturamento' | 'processos_ativos' | 'tarefas_concluidas';
@@ -709,6 +712,7 @@ export function criarTarefa(dto: {
   prioridade?: string;
   responsavel_id?: string;
   numero_processo?: string;
+  recorrencia?: FrequenciaRecorrencia;
 }) {
   return request<Tarefa>('/tarefas', { method: 'POST', body: JSON.stringify(dto) });
 }
@@ -723,6 +727,7 @@ export function atualizarTarefa(
     prioridade?: string;
     responsavel_id?: string;
     numero_processo?: string;
+    recorrencia?: FrequenciaRecorrencia | '';
   },
 ) {
   return request<Tarefa>(`/tarefas/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });

@@ -4,6 +4,7 @@ import { Document, Types } from 'mongoose';
 export type PrioridadeTarefa = 'baixa' | 'media' | 'alta' | 'critica';
 export type StatusTarefa = 'pendente' | 'em_andamento' | 'concluida' | 'atrasada';
 export type OrigemTarefa = 'manual' | 'prazo_publicacao' | 'audiencia_publicacao' | 'terceirizacao';
+export type FrequenciaRecorrencia = 'diaria' | 'semanal' | 'mensal' | 'anual';
 
 @Schema({ timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } })
 export class Tarefa extends Document {
@@ -39,6 +40,11 @@ export class Tarefa extends Document {
 
   @Prop()
   concluida_em?: Date;
+
+  // presente = tarefa recorrente; ao concluir, o controller cria a proxima ocorrencia
+  // com data_vencimento avancada por essa frequencia
+  @Prop()
+  recorrencia?: FrequenciaRecorrencia;
 }
 
 export const TarefaSchema = SchemaFactory.createForClass(Tarefa);

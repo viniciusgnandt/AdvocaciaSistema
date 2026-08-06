@@ -36,4 +36,9 @@ export class AtualizarTarefaDto {
   @IsOptional()
   @IsString()
   numero_processo?: string;
+
+  @ApiProperty({ required: false, enum: ['diaria', 'semanal', 'mensal', 'anual'], description: 'string vazia remove a recorrencia' })
+  @IsOptional()
+  @IsIn(['diaria', 'semanal', 'mensal', 'anual', ''])
+  recorrencia?: 'diaria' | 'semanal' | 'mensal' | 'anual' | '';
 }

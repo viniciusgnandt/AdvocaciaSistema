@@ -7,6 +7,16 @@ import { Publicacao } from '../publicacoes/schemas/publicacao.schema';
 import { CriarTarefaDto } from './dto/criar-tarefa.dto';
 import { AtualizarTarefaDto } from './dto/atualizar-tarefa.dto';
 import { CurrentUser, UsuarioAutenticado } from '../auth/decorators/current-user.decorator';
+import { FrequenciaRecorrencia } from './schemas/tarefa.schema';
+
+function proximaOcorrencia(dataBase: Date, frequencia: FrequenciaRecorrencia): Date {
+  const proxima = new Date(dataBase);
+  if (frequencia === 'diaria') proxima.setDate(proxima.getDate() + 1);
+  else if (frequencia === 'semanal') proxima.setDate(proxima.getDate() + 7);
+  else if (frequencia === 'mensal') proxima.setMonth(proxima.getMonth() + 1);
+  else proxima.setFullYear(proxima.getFullYear() + 1);
+  return proxima;
+}
 
 @ApiTags('tarefas')
 @Controller('tarefas')
@@ -110,17 +120,42 @@ export class TarefasController {
     @Param('id') id: string,
     @Body() dto: AtualizarTarefaDto,
   ) {
-    const set: Record<string, unknown> = { ...dto };
+    const tenant = new Types.ObjectId(usuario.tenantId);
+    const { recorrencia, ...resto } = dto;
+    const set: Record<string, unknown> = { ...resto };
+    const unset: Record<string, unknown> = {};
     if (dto.data_vencimento) set.data_vencimento = new Date(dto.data_vencimento);
     if (dto.status === 'concluida') set.concluida_em = new Date();
     if (dto.responsavel_id) set.responsavel_id = new Types.ObjectId(dto.responsavel_id);
+    if (recorrencia === '') unset.recorrencia = '';
+    else if (recorrencia) set.recorrencia = recorrencia;
+
+    const anterior = await this.tarefaModel.findOne({ _id: new Types.ObjectId(id), tenant_id: tenant });
+    if (!anterior) throw new NotFoundException('tarefa nao encontrada');
 
     const atualizada = await this.tarefaModel.findOneAndUpdate(
-      { _id: new Types.ObjectId(id), tenant_id: new Types.ObjectId(usuario.tenantId) },
-      { $set: set },
+      { _id: new Types.ObjectId(id), tenant_id: tenant },
+      { ...(Object.keys(set).length ? { $set: set } : {}), ...(Object.keys(unset).length ? { $unset: unset } : {}) },
       { new: true },
     );
     if (!atualizada) throw new NotFoundException('tarefa nao encontrada');
+
+    // ao concluir uma tarefa recorrente, gera a proxima ocorrencia automaticamente
+    if (dto.status === 'concluida' && anterior.status !== 'concluida' && anterior.recorrencia) {
+      const proximaData = proximaOcorrencia(anterior.data_vencimento, anterior.recorrencia);
+      await this.tarefaModel.create({
+        tenant_id: tenant,
+        titulo: anterior.titulo,
+        descricao: anterior.descricao,
+        numero_processo: anterior.numero_processo,
+        responsavel_id: anterior.responsavel_id,
+        data_vencimento: proximaData,
+        prioridade: anterior.prioridade,
+        origem: 'manual',
+        recorrencia: anterior.recorrencia,
+      });
+    }
+
     return atualizada;
   }
 

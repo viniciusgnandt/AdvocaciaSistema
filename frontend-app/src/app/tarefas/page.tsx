@@ -11,6 +11,7 @@ import {
   List,
   Landmark,
   Plus,
+  Repeat,
   Trash2,
   User,
   X,
@@ -265,7 +266,14 @@ export default function TarefasPage() {
                         className="rounded-lg border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 space-y-2 cursor-grab active:cursor-grabbing hover:border-brand-300 dark:hover:border-brand-800 hover:shadow-sm transition-all"
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm text-gray-800 dark:text-gray-200 leading-snug">{t.titulo}</p>
+                          <p className="text-sm text-gray-800 dark:text-gray-200 leading-snug flex items-center gap-1">
+                            {t.recorrencia && (
+                              <span title="Tarefa recorrente" className="shrink-0 inline-flex">
+                                <Repeat size={11} className="text-gray-300 dark:text-gray-600" />
+                              </span>
+                            )}
+                            {t.titulo}
+                          </p>
                           <span className={cn('shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border', PRIORIDADE_COR[t.prioridade])}>
                             {t.prioridade}
                           </span>
@@ -336,7 +344,12 @@ export default function TarefasPage() {
                 </button>
 
                 <div className="min-w-0 flex-1">
-                  <p className={cn('text-sm', t.status === 'concluida' ? 'text-gray-400 line-through' : 'text-gray-800 dark:text-gray-200')}>
+                  <p className={cn('text-sm flex items-center gap-1', t.status === 'concluida' ? 'text-gray-400 line-through' : 'text-gray-800 dark:text-gray-200')}>
+                    {t.recorrencia && (
+                              <span title="Tarefa recorrente" className="shrink-0 inline-flex">
+                                <Repeat size={11} className="text-gray-300 dark:text-gray-600" />
+                              </span>
+                            )}
                     {t.titulo}
                   </p>
                   <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-gray-400">
@@ -433,6 +446,7 @@ function TarefaModal({
     status: tarefa?.status ?? ('pendente' as StatusTarefa),
     responsavel_id: tarefa?.responsavel_id ?? '',
     numero_processo: tarefa?.numero_processo ?? '',
+    recorrencia: tarefa?.recorrencia ?? ('' as Tarefa['recorrencia'] | ''),
   });
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -454,6 +468,7 @@ function TarefaModal({
           status: form.status,
           responsavel_id: form.responsavel_id || undefined,
           numero_processo: form.numero_processo || undefined,
+          recorrencia: form.recorrencia || '',
         });
       } else {
         await criarTarefa({
@@ -463,6 +478,7 @@ function TarefaModal({
           prioridade: form.prioridade,
           responsavel_id: form.responsavel_id || undefined,
           numero_processo: form.numero_processo || undefined,
+          recorrencia: form.recorrencia || undefined,
         });
       }
       onSalva();
@@ -545,6 +561,28 @@ function TarefaModal({
               </select>
             </label>
           </div>
+
+          <label className="block">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block flex items-center gap-1">
+              <Repeat size={11} /> Repetir
+            </span>
+            <select
+              value={form.recorrencia}
+              onChange={(e) => setForm({ ...form, recorrencia: e.target.value as Tarefa['recorrencia'] | '' })}
+              className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+            >
+              <option value="">Não repetir</option>
+              <option value="diaria">Diariamente</option>
+              <option value="semanal">Semanalmente</option>
+              <option value="mensal">Mensalmente</option>
+              <option value="anual">Anualmente</option>
+            </select>
+            {form.recorrencia && (
+              <span className="text-[11px] text-gray-400 mt-1 block">
+                Ao concluir, uma nova tarefa igual será criada automaticamente na próxima data.
+              </span>
+            )}
+          </label>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
