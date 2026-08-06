@@ -9,6 +9,7 @@ import {
   CalendarClock,
   CheckSquare,
   Clock,
+  FileStack,
   DollarSign,
   Gavel,
   History as HistoryIcon,
@@ -53,6 +54,7 @@ import { BotaoFavorito } from '@/components/common/BotaoFavorito';
 import { useFavoritos } from '@/lib/useFavoritos';
 import { ModoApresentacao } from '@/components/processos/ModoApresentacao';
 import { ComparadorProcessos } from '@/components/processos/ComparadorProcessos';
+import { gerarCapaProcesso } from '@/lib/capaProcesso';
 import { BotaoExportar } from '@/components/ui/BotaoExportar';
 import { exportarExcel, exportarPdf } from '@/lib/exportar';
 
@@ -417,12 +419,20 @@ function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtu
               </span>
             )}
           </div>
-          <button
-            onClick={() => setApresentando(true)}
-            className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5"
-          >
-            <Presentation size={13} /> Modo apresentação
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => gerarCapaProcesso(processo)}
+              className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5"
+            >
+              <FileStack size={13} /> Gerar capa
+            </button>
+            <button
+              onClick={() => setApresentando(true)}
+              className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5"
+            >
+              <Presentation size={13} /> Modo apresentação
+            </button>
+          </div>
         </div>
         <p className="font-mono text-sm text-gray-500 dark:text-gray-400 mt-1">{formatarNumeroCnj(processo.numero_cnj)}</p>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{processo.classe ?? 'Classe não identificada'}</p>
