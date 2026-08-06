@@ -139,9 +139,14 @@ function ProcessosPageConteudo() {
     .filter((p) => !somenteFavoritos || ehFavorito('processo', p._id))
     .sort((a, b) => Number(ehFavorito('processo', b._id)) - Number(ehFavorito('processo', a._id)));
 
+  const processosParaExportar =
+    comparando && selecionadosComparar.size > 0
+      ? processos.filter((p) => selecionadosComparar.has(p.numero_cnj))
+      : processos;
+
   const exportarComoExcel = () => {
     exportarExcel(
-      processos.map((p) => ({
+      processosParaExportar.map((p) => ({
         'Nº CNJ': p.numero_cnj,
         Tribunal: p.tribunal ?? '',
         Classe: p.classe ?? '',
@@ -157,7 +162,7 @@ function ProcessosPageConteudo() {
     exportarPdf(
       'Processos',
       ['Nº CNJ', 'Tribunal', 'Classe', 'Parte ativa', 'Parte passiva'],
-      processos.map((p) => [p.numero_cnj, p.tribunal ?? '', p.classe ?? '', p.parte_ativa ?? '', p.parte_passiva ?? '']),
+      processosParaExportar.map((p) => [p.numero_cnj, p.tribunal ?? '', p.classe ?? '', p.parte_ativa ?? '', p.parte_passiva ?? '']),
       'processos',
     );
   };
@@ -207,7 +212,7 @@ function ProcessosPageConteudo() {
               )}
             >
               <Scale size={12} />
-              Comparar
+              Selecionar
             </button>
           )}
           {processos.length > 0 && <BotaoExportar onExcel={exportarComoExcel} onPdf={exportarComoPdf} />}
@@ -217,8 +222,8 @@ function ProcessosPageConteudo() {
           <div className="mb-3 flex items-center gap-3 rounded-lg border border-brand-200 dark:border-brand-800 bg-brand-50 dark:bg-brand-900/20 px-3 py-2 text-sm">
             <span className="text-brand-700 dark:text-brand-400">
               {selecionadosComparar.size === 0
-                ? 'Selecione ao menos 2 processos para comparar'
-                : `${selecionadosComparar.size} selecionado${selecionadosComparar.size > 1 ? 's' : ''}`}
+                ? 'Selecione processos para comparar ou exportar em lote'
+                : `${selecionadosComparar.size} selecionado${selecionadosComparar.size > 1 ? 's' : ''} — Exportar acima já usa só esses`}
             </span>
             <button
               onClick={() => setComparadorAberto(true)}
