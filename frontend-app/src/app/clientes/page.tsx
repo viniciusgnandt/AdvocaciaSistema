@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   AlertTriangle,
+  Cake,
   Check,
   Copy,
   Download,
@@ -321,6 +322,13 @@ function ClientesPageConteudo() {
                   {selecionado.profissao && <InfoCard icon={UserRound} label="Profissão" valor={selecionado.profissao} />}
                   {selecionado.estado_civil && (
                     <InfoCard icon={UserRound} label="Estado civil" valor={LABEL_ESTADO_CIVIL[selecionado.estado_civil]} />
+                  )}
+                  {selecionado.data_nascimento && (
+                    <InfoCard
+                      icon={Cake}
+                      label="Nascimento"
+                      valor={new Date(`${selecionado.data_nascimento}T00:00:00`).toLocaleDateString('pt-BR')}
+                    />
                   )}
                   {selecionado.razao_social && <InfoCard icon={Landmark} label="Razão social" valor={selecionado.razao_social} />}
                   {selecionado.nome_fantasia && <InfoCard icon={Landmark} label="Nome fantasia" valor={selecionado.nome_fantasia} />}
@@ -670,6 +678,7 @@ function ClienteModal({
           whatsapp: clienteEditando.whatsapp,
           profissao: clienteEditando.profissao,
           estado_civil: clienteEditando.estado_civil,
+          data_nascimento: clienteEditando.data_nascimento,
           razao_social: clienteEditando.razao_social,
           nome_fantasia: clienteEditando.nome_fantasia,
           observacoes: clienteEditando.observacoes,
@@ -851,6 +860,14 @@ function ClienteModal({
                   <option value="viuvo">Viúvo(a)</option>
                   <option value="uniao_estavel">União estável</option>
                 </select>
+              </Campo>
+              <Campo label="Data de nascimento">
+                <input
+                  type="date"
+                  value={form.data_nascimento ?? ''}
+                  onChange={(e) => setForm({ ...form, data_nascimento: e.target.value || undefined })}
+                  className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+                />
               </Campo>
             </div>
           ) : (

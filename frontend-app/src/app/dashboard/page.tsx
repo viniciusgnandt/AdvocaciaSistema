@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   AlertTriangle,
   Bell,
+  Cake,
   Calendar,
   CheckSquare,
   Gavel,
@@ -24,6 +25,7 @@ import {
   listarTarefas,
   usuarioLogado,
   type AgendaEvento,
+  type Cliente,
   type Lancamento,
   type Processo,
   type ResumoPublicacoes,
@@ -202,6 +204,25 @@ function FeedDiario({ tarefas, eventos }: { tarefas: Tarefa[]; eventos: AgendaEv
   );
 }
 
+function proximosAniversarios(clientes: Cliente[]) {
+  const hoje = new Date();
+  const hojeMesDia = hoje.getMonth() * 31 + hoje.getDate();
+
+  return clientes
+    .filter((c) => c.tipo === 'pf' && c.data_nascimento)
+    .map((c) => {
+      const [, mesStr, diaStr] = c.data_nascimento!.split('-');
+      const mes = Number(mesStr) - 1;
+      const dia = Number(diaStr);
+      let diasAte = new Date(hoje.getFullYear(), mes, dia).getTime() - new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()).getTime();
+      diasAte = Math.round(diasAte / (24 * 60 * 60 * 1000));
+      if (diasAte < 0) diasAte += 365;
+      return { cliente: c, mes, dia, diasAte };
+    })
+    .filter((a) => a.diasAte <= 30)
+    .sort((a, b) => a.diasAte - b.diasAte);
+}
+
 const PRIORIDADE_COR: Record<string, string> = {
   baixa: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300',
   media: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
@@ -215,6 +236,7 @@ export default function DashboardPage() {
   const [totalProcessosAtivos, setTotalProcessosAtivos] = useState(0);
   const [processosComAudiencia, setProcessosComAudiencia] = useState<Processo[]>([]);
   const [totalClientes, setTotalClientes] = useState(0);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [eventos, setEventos] = useState<AgendaEvento[]>([]);
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -242,6 +264,7 @@ export default function DashboardPage() {
         setTotalProcessosAtivos(pAtivos.itens.length);
         setProcessosComAudiencia(pAudiencia.itens);
         setTotalClientes(c.length);
+        setClientes(c);
         setEventos(a.eventos);
         setLancamentos(l);
       })
@@ -256,6 +279,7 @@ export default function DashboardPage() {
     .slice(0, 5);
   const proximasAudiencias = processosComAudiencia.slice(0, 5);
   const proximosEventos = eventos.slice(0, 5);
+  const aniversarios = proximosAniversarios(clientes).slice(0, 5);
 
   return (
     <>
@@ -280,7 +304,7 @@ export default function DashboardPage() {
 
         {!loading && <FeedDiario tarefas={tarefas} eventos={eventos} />}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <Painel titulo="Próximos prazos" href="/tarefas" icone={CheckSquare} vazio="Nenhum prazo pendente." loading={loading}>
             {proximasTarefas.map((t) => (
               <li key={t._id} className="flex items-center gap-3 px-4 py-3">
@@ -318,6 +342,22 @@ export default function DashboardPage() {
                 </div>
                 <span className="text-xs text-gray-400 shrink-0">
                   {p.proxima_audiencia && new Date(p.proxima_audiencia).toLocaleDateString('pt-BR')}
+                </span>
+              </li>
+            ))}
+          </Painel>
+
+          <Painel titulo="Aniversários" href="/clientes" icone={Cake} vazio="Nenhum aniversário nos próximos 30 dias." loading={loading}>
+            {aniversarios.map(({ cliente, mes, dia, diasAte }) => (
+              <li key={cliente._id} className="flex items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-gray-800 dark:text-gray-200 truncate">{cliente.nome}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {diasAte === 0 ? 'Hoje!' : diasAte === 1 ? 'Amanhã' : `Em ${diasAte} dias`}
+                  </p>
+                </div>
+                <span className="text-xs text-gray-400 shrink-0">
+                  {String(dia).padStart(2, '0')}/{String(mes + 1).padStart(2, '0')}
                 </span>
               </li>
             ))}

@@ -58,6 +58,11 @@ export class CriarClienteDto {
   @IsIn(['solteiro', 'casado', 'divorciado', 'viuvo', 'uniao_estavel'])
   estado_civil?: string;
 
+  @ApiProperty({ required: false, description: 'Data de nascimento (YYYY-MM-DD), apenas para clientes pessoa física' })
+  @IsOptional()
+  @IsString()
+  data_nascimento?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()

@@ -537,6 +537,7 @@ export type Cliente = {
   status: 'ativo' | 'inativo' | 'prospect';
   profissao?: string;
   estado_civil?: EstadoCivil;
+  data_nascimento?: string;
   razao_social?: string;
   nome_fantasia?: string;
   observacoes?: string;
@@ -557,6 +558,7 @@ export type NovoCliente = {
   whatsapp?: string;
   profissao?: string;
   estado_civil?: EstadoCivil;
+  data_nascimento?: string;
   razao_social?: string;
   nome_fantasia?: string;
   observacoes?: string;

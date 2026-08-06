@@ -53,6 +53,7 @@ export class Cliente extends Document {
   tags: string[];
 
   @Prop() profissao?: string;
+  @Prop() data_nascimento?: string;
   @Prop({ enum: ['solteiro', 'casado', 'divorciado', 'viuvo', 'uniao_estavel'] })
   estado_civil?: EstadoCivil;
   @Prop() razao_social?: string;
