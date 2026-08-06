@@ -523,6 +523,10 @@ export type Tarefa = {
   concluida_em?: string;
 };
 
+export function calcularPrazo(dto: { data_inicial: string; dias: number; tipo: 'uteis' | 'corridos'; considerar_recesso?: boolean }) {
+  return request<{ data_fatal: string }>('/prazos/calcular', { method: 'POST', body: JSON.stringify(dto) });
+}
+
 export function listarTarefas(
   filtros: { status?: string; responsavelId?: string; numeroProcesso?: string; atrasadas?: boolean } = {},
 ) {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
+  Calculator,
   Calendar,
   Check,
   LayoutGrid,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/Topbar';
 import { StatCard } from '@/components/ui/StatCard';
+import { CalculadoraPrazo } from '@/components/tarefas/CalculadoraPrazo';
 import {
   atualizarTarefa,
   criarTarefa,
@@ -59,6 +61,7 @@ export default function TarefasPage() {
   const [responsavelFiltro, setResponsavelFiltro] = useState('');
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
+  const [calculadoraAberta, setCalculadoraAberta] = useState(false);
   const [tarefaEditando, setTarefaEditando] = useState<Tarefa | null>(null);
   const [colunaSobre, setColunaSobre] = useState<StatusTarefa | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -200,8 +203,15 @@ export default function TarefasPage() {
           </select>
 
           <button
+            onClick={() => setCalculadoraAberta(true)}
+            className="ml-auto flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-800 px-3 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+          >
+            <Calculator size={14} /> Calcular prazo
+          </button>
+
+          <button
             onClick={() => setModalAberto(true)}
-            className="ml-auto flex items-center gap-2 rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2.5 text-sm font-medium text-white transition"
+            className="flex items-center gap-2 rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2.5 text-sm font-medium text-white transition"
           >
             <Plus size={14} /> Nova tarefa
           </button>
@@ -368,6 +378,8 @@ export default function TarefasPage() {
           </ul>
         )}
       </main>
+
+      {calculadoraAberta && <CalculadoraPrazo onFechar={() => setCalculadoraAberta(false)} />}
 
       {modalAberto && (
         <TarefaModal

@@ -5,6 +5,8 @@
  * houver volume/rotulos suficientes para justificar a complexidade extra.
  */
 
+import { somarDiasUteis } from '../../common/calendario-forense.util';
+
 export type ClassificacaoPublicacao =
   | 'audiencia'
   | 'sentenca'
@@ -105,17 +107,5 @@ export function classificarPublicacao(
     resultado.prazo_data_limite = somarDiasUteis(dataReferencia, dias);
   }
 
-  return resultado;
-}
-
-/** Soma dias uteis (seg-sex) a partir de uma data. Nao considera feriados forenses. */
-function somarDiasUteis(data: Date, dias: number): Date {
-  const resultado = new Date(data);
-  let restantes = dias;
-  while (restantes > 0) {
-    resultado.setDate(resultado.getDate() + 1);
-    const diaSemana = resultado.getDay();
-    if (diaSemana !== 0 && diaSemana !== 6) restantes -= 1;
-  }
   return resultado;
 }

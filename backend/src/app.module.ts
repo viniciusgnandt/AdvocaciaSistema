@@ -11,6 +11,7 @@ import { ClientesModule } from './modules/clientes/clientes.module';
 import { FinanceiroModule } from './modules/financeiro/financeiro.module';
 import { TerceirizacoesModule } from './modules/terceirizacoes/terceirizacoes.module';
 import { ExportacaoModule } from './modules/exportacao/exportacao.module';
+import { PrazosModule } from './modules/prazos/prazos.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ExportacaoModule } from './modules/exportacao/exportacao.module';
     FinanceiroModule,
     TerceirizacoesModule,
     ExportacaoModule,
+    PrazosModule,
   ],
 })
 export class AppModule {}
