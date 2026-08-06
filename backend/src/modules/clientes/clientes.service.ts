@@ -51,6 +51,45 @@ export class ClientesService {
   }
 
   /**
+   * Conflito de interesse: para cada processo vinculado a este cliente, olha pra "outra
+   * parte" (a que nao bate com o nome do proprio cliente) e checa se o nome dela coincide
+   * com o de outro cliente cadastrado no escritorio - sinal de que o escritorio pode estar
+   * representando as duas pontas de uma mesma disputa, ainda que em processos diferentes.
+   * E deliberadamente simples (match por nome normalizado, sem CPF/CNPJ) porque a fonte dos
+   * nomes das partes e' texto livre extraido de publicacoes, nao um cadastro estruturado.
+   */
+  async verificarConflitos(tenantId: Types.ObjectId, clienteId: Types.ObjectId) {
+    const cliente = await this.clienteModel.findOne({ _id: clienteId, tenant_id: tenantId });
+    if (!cliente) return [];
+
+    const nomeCliente = normalizarNome(cliente.nome);
+    const processos = await this.processosVinculados(tenantId, clienteId);
+    if (processos.length === 0) return [];
+
+    const outrasPartes = processos
+      .map((p) => {
+        const ativaBate = p.parte_ativa && normalizarNome(p.parte_ativa) === nomeCliente;
+        const outraParte = ativaBate ? p.parte_passiva : p.parte_ativa;
+        return outraParte ? { numeroCnj: p.numero_cnj, outraParte } : null;
+      })
+      .filter((v): v is { numeroCnj: string; outraParte: string } => !!v);
+
+    if (outrasPartes.length === 0) return [];
+
+    const outrosClientes = await this.clienteModel.find({ tenant_id: tenantId, _id: { $ne: clienteId } });
+    const porNome = new Map(outrosClientes.map((c) => [normalizarNome(c.nome), c]));
+
+    const conflitos: { numeroCnj: string; clienteConflitante: { id: string; nome: string } }[] = [];
+    for (const { numeroCnj, outraParte } of outrasPartes) {
+      const encontrado = porNome.get(normalizarNome(outraParte));
+      if (encontrado) {
+        conflitos.push({ numeroCnj, clienteConflitante: { id: String(encontrado._id), nome: encontrado.nome } });
+      }
+    }
+    return conflitos;
+  }
+
+  /**
    * Arquivos de todos os processos vinculados ao cliente, agregados num unico feed -
    * complementa os arquivos que o proprio cliente tem (upload direto, antes de existir
    * processo). Isso e so leitura: para organizar em pastas o advogado usa a tela do

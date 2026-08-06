@@ -36,6 +36,12 @@ export class ClientesController {
     return this.clientesService.processosVinculados(new Types.ObjectId(tenantId), new Types.ObjectId(id));
   }
 
+  @Get(':id/conflitos')
+  @ApiOperation({ summary: 'Verifica se a parte contraria de algum processo deste cliente tambem e cliente do escritorio' })
+  async conflitos(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string) {
+    return this.clientesService.verificarConflitos(new Types.ObjectId(tenantId), new Types.ObjectId(id));
+  }
+
   @Get(':id/documentos')
   @ApiOperation({ summary: 'Arquivos de todos os processos vinculados a esse cliente, agregados' })
   async documentosDosProcessos(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string) {

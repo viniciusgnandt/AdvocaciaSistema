@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
+  AlertTriangle,
   Download,
   FileText,
   Gavel,
@@ -29,6 +30,7 @@ import {
   listarClientes,
   listarProcessos,
   processosDoCliente,
+  verificarConflitosCliente,
   vincularProcessoAoCliente,
   type Cliente,
   type DocumentoProcesso,
@@ -73,6 +75,7 @@ function ClientesPageConteudo() {
   const [selecionado, setSelecionado] = useState<Cliente | null>(null);
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [documentosProcessos, setDocumentosProcessos] = useState<DocumentoProcesso[]>([]);
+  const [conflitos, setConflitos] = useState<{ numeroCnj: string; clienteConflitante: { id: string; nome: string } }[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<'novo' | 'editar' | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -113,9 +116,13 @@ function ClientesPageConteudo() {
     if (!selecionado) {
       setProcessos([]);
       setDocumentosProcessos([]);
+      setConflitos([]);
       return;
     }
     carregarProcessosEArquivos(selecionado._id);
+    verificarConflitosCliente(selecionado._id)
+      .then(setConflitos)
+      .catch(() => setConflitos([]));
   }, [selecionado, carregarProcessosEArquivos]);
 
   const handleSalvo = async (cliente: Cliente) => {
@@ -222,6 +229,20 @@ function ClientesPageConteudo() {
 
             {selecionado && (
               <div className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 space-y-6">
+                {conflitos.length > 0 && (
+                  <div className="rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/50 px-4 py-3 space-y-1.5">
+                    <p className="text-sm font-semibold text-red-700 dark:text-red-300 flex items-center gap-1.5">
+                      <AlertTriangle size={14} /> Possível conflito de interesses
+                    </p>
+                    {conflitos.map((c) => (
+                      <p key={c.numeroCnj} className="text-xs text-red-600 dark:text-red-400">
+                        <span className="font-medium">{c.clienteConflitante.nome}</span> também é cliente deste escritório e
+                        aparece como parte contrária no processo <span className="font-mono">{c.numeroCnj}</span>.
+                      </p>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex items-start gap-3">
                   <div className="w-11 h-11 rounded-full bg-brand-600 flex items-center justify-center text-white font-semibold shrink-0">
                     {selecionado.nome.charAt(0).toUpperCase()}

@@ -495,6 +495,10 @@ export function criarCliente(dto: NovoCliente) {
   return request<Cliente>('/clientes', { method: 'POST', body: JSON.stringify(dto) });
 }
 
+export function verificarConflitosCliente(id: string) {
+  return request<{ numeroCnj: string; clienteConflitante: { id: string; nome: string } }[]>(`/clientes/${id}/conflitos`);
+}
+
 export function buscarCliente(id: string) {
   return request<Cliente>(`/clientes/${id}`);
 }
