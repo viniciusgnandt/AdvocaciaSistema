@@ -14,6 +14,7 @@ import { ExportacaoModule } from './modules/exportacao/exportacao.module';
 import { PrazosModule } from './modules/prazos/prazos.module';
 import { AuditoriaModule } from './modules/auditoria/auditoria.module';
 import { PortalModule } from './modules/portal/portal.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { PortalModule } from './modules/portal/portal.module';
     PrazosModule,
     AuditoriaModule,
     PortalModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

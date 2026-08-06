@@ -7,7 +7,7 @@ import { getToken } from '@/lib/api';
 import { Sidebar } from './Sidebar';
 import { MobileBottomNav } from './MobileBottomNav';
 
-const ROTAS_PUBLICAS = ['/login', '/registro'];
+const ROTAS_PUBLICAS = ['/login', '/registro', '/status'];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
