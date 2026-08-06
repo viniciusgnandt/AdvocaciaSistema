@@ -9,5 +9,6 @@ import { AuditoriaModule } from '../auditoria/auditoria.module';
   imports: [MongooseModule.forFeature([{ name: Lancamento.name, schema: LancamentoSchema }]), AuditoriaModule],
   controllers: [FinanceiroController],
   providers: [FinanceiroService],
+  exports: [FinanceiroService],
 })
 export class FinanceiroModule {}

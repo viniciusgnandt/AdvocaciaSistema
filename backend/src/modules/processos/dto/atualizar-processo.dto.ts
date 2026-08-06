@@ -43,4 +43,9 @@ export class AtualizarProcessoDto {
   @IsOptional()
   @IsObject()
   honorarios?: HonorariosDto;
+
+  @ApiProperty({ required: false, enum: ['ativo', 'suspenso', 'encerrado', 'arquivado'] })
+  @IsOptional()
+  @IsIn(['ativo', 'suspenso', 'encerrado', 'arquivado'])
+  status?: string;
 }

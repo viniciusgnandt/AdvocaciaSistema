@@ -376,6 +376,7 @@ export type AtualizarProcesso = {
   advogado_parte_contraria?: string;
   observacoes?: string;
   honorarios?: Honorarios;
+  status?: string;
 };
 
 export type FiltrosProcessos = {

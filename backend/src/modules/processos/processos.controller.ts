@@ -8,6 +8,7 @@ import { ProcessosService } from './processos.service';
 import { AtualizarProcessoDto } from './dto/atualizar-processo.dto';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { CurrentUser, UsuarioAutenticado } from '../auth/decorators/current-user.decorator';
+import { FinanceiroService } from '../financeiro/financeiro.service';
 
 @ApiTags('processos')
 @ApiHeader({ name: 'x-tenant-id', required: true })
@@ -18,6 +19,7 @@ export class ProcessosController {
     private readonly datajud: DatajudConnectorService,
     private readonly processosService: ProcessosService,
     private readonly auditoriaService: AuditoriaService,
+    private readonly financeiroService: FinanceiroService,
   ) {}
 
   @Get()
@@ -86,21 +88,66 @@ export class ProcessosController {
   }
 
   @Patch(':numeroCnj')
-  @ApiOperation({ summary: 'Atualiza anotacoes manuais do processo (fase, advogado da parte contraria, honorarios, observacoes)' })
+  @ApiOperation({ summary: 'Atualiza anotacoes manuais do processo (fase, advogado da parte contraria, honorarios, observacoes, status)' })
   async atualizar(
     @Headers('x-tenant-id') tenantId: string,
     @Param('numeroCnj') numeroCnj: string,
     @Body() dto: AtualizarProcessoDto,
     @CurrentUser() usuario: UsuarioAutenticado,
   ) {
+    const tenant = new Types.ObjectId(tenantId);
+    const numeroLimpo = numeroCnj.replace(/\D/g, '');
+    const anterior = await this.processoModel.findOne({ tenant_id: tenant, numero_cnj: numeroLimpo });
+    if (!anterior) return { erro: 'processo nao encontrado' };
+
     const processo = await this.processoModel.findOneAndUpdate(
-      { tenant_id: new Types.ObjectId(tenantId), numero_cnj: numeroCnj.replace(/\D/g, '') },
+      { tenant_id: tenant, numero_cnj: numeroLimpo },
       { $set: dto },
       { new: true },
     );
     if (!processo) return { erro: 'processo nao encontrado' };
     this.auditoriaService.registrar(usuario, 'atualizar', 'processo', processo.numero_cnj);
+
+    // ao encerrar um processo com honorarios de exito/percentual definidos, gera o
+    // lancamento financeiro automaticamente - evita o advogado esquecer de lancar o
+    // recebivel na hora do encerramento, que e' justamente quando a atencao esta no
+    // desfecho do caso, nao no financeiro. Idempotente: nao duplica se ja existir.
+    if (dto.status === 'encerrado' && anterior.status !== 'encerrado' && processo.honorarios?.tipo) {
+      await this.gerarLancamentoDeExito(tenant, processo);
+    }
+
     return processo;
+  }
+
+  private async gerarLancamentoDeExito(tenant: Types.ObjectId, processo: Processo) {
+    const honorarios = processo.honorarios;
+    if (!honorarios) return;
+
+    const jaExiste = await this.financeiroService.listar(tenant, {
+      numeroProcesso: processo.numero_cnj,
+      // categoria nao faz parte do filtro do service - filtra em memoria abaixo
+    });
+    if (jaExiste.some((l) => l.categoria === 'honorarios_exito')) return;
+
+    let valor: number | undefined;
+    if (honorarios.tipo === 'fixo' && honorarios.valor_fixo) {
+      valor = honorarios.valor_fixo;
+    } else if ((honorarios.tipo === 'percentual' || honorarios.tipo === 'exito') && honorarios.percentual && processo.valor_causa) {
+      valor = (processo.valor_causa * honorarios.percentual) / 100;
+    } else if (honorarios.tipo === 'misto') {
+      valor = (honorarios.valor_fixo ?? 0) + (honorarios.percentual && processo.valor_causa ? (processo.valor_causa * honorarios.percentual) / 100 : 0);
+    }
+    if (!valor || valor <= 0) return;
+
+    await this.financeiroService.criar(tenant, {
+      tipo: 'receita',
+      descricao: `Honorários de êxito — ${processo.numero_cnj}`,
+      valor,
+      categoria: 'honorarios_exito',
+      clienteId: processo.cliente_id ? String(processo.cliente_id) : undefined,
+      numero_processo: processo.numero_cnj,
+      data_vencimento: new Date().toISOString(),
+    });
   }
 
   @Post(':numeroCnj/enriquecer')

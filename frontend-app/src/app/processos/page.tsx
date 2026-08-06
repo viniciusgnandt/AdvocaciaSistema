@@ -446,6 +446,7 @@ function DetalhesProcessoForm({
     advogado_parte_contraria: processo.advogado_parte_contraria,
     observacoes: processo.observacoes,
     honorarios: processo.honorarios,
+    status: processo.status,
   });
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -487,6 +488,21 @@ function DetalhesProcessoForm({
           />
         </label>
       </div>
+
+      <label className="block">
+        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Status</span>
+        <select value={form.status ?? ''} onChange={(e) => setForm({ ...form, status: e.target.value })} className={inputCls}>
+          <option value="ativo">Ativo</option>
+          <option value="suspenso">Suspenso</option>
+          <option value="encerrado">Encerrado</option>
+          <option value="arquivado">Arquivado</option>
+        </select>
+        {form.status === 'encerrado' && form.honorarios?.tipo && (
+          <p className="text-[11px] text-brand-600 dark:text-brand-400 mt-1">
+            Ao salvar, um lançamento de honorários de êxito será criado automaticamente no Financeiro.
+          </p>
+        )}
+      </label>
 
       <div className="grid grid-cols-3 gap-3">
         <label className="block">
