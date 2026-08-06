@@ -16,6 +16,7 @@ import { AuditoriaModule } from './modules/auditoria/auditoria.module';
 import { PortalModule } from './modules/portal/portal.module';
 import { HealthModule } from './modules/health/health.module';
 import { MetasModule } from './modules/metas/metas.module';
+import { ChecklistsModule } from './modules/checklists/checklists.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { MetasModule } from './modules/metas/metas.module';
     PortalModule,
     HealthModule,
     MetasModule,
+    ChecklistsModule,
   ],
 })
 export class AppModule {}

@@ -605,6 +605,34 @@ export function excluirMeta(id: string) {
   return request<{ ok: boolean } | { erro: string }>(`/metas/${id}`, { method: 'DELETE' });
 }
 
+export type ItemChecklist = { titulo: string; dias_prazo: number };
+
+export type ChecklistTemplate = {
+  _id: string;
+  nome: string;
+  itens: ItemChecklist[];
+};
+
+export function listarChecklistTemplates() {
+  return request<ChecklistTemplate[]>('/checklists');
+}
+
+export function criarChecklistTemplate(dto: { nome: string; itens: ItemChecklist[] }) {
+  return request<ChecklistTemplate>('/checklists', { method: 'POST', body: JSON.stringify(dto) });
+}
+
+export function atualizarChecklistTemplate(id: string, dto: { nome: string; itens: ItemChecklist[] }) {
+  return request<ChecklistTemplate>(`/checklists/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
+}
+
+export function excluirChecklistTemplate(id: string) {
+  return request<{ ok: boolean } | { erro: string }>(`/checklists/${id}`, { method: 'DELETE' });
+}
+
+export function aplicarChecklistTemplate(templateId: string, numeroCnj: string) {
+  return request<Tarefa[]>(`/checklists/${templateId}/aplicar/${numeroCnj}`, { method: 'POST' });
+}
+
 export function verificarSaudeApi() {
   return request<{ status: string; banco: string; timestamp: string }>('/health');
 }

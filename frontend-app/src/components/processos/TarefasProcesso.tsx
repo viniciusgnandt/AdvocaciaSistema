@@ -1,8 +1,19 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Check, CheckSquare, Plus, Trash2, X } from 'lucide-react';
-import { atualizarTarefa, criarTarefa, excluirTarefa, listarTarefas, listarUsuarios, type Tarefa, type Usuario } from '@/lib/api';
+import { Check, CheckSquare, ListChecks, Plus, Trash2, X } from 'lucide-react';
+import {
+  aplicarChecklistTemplate,
+  atualizarTarefa,
+  criarTarefa,
+  excluirTarefa,
+  listarChecklistTemplates,
+  listarTarefas,
+  listarUsuarios,
+  type ChecklistTemplate,
+  type Tarefa,
+  type Usuario,
+} from '@/lib/api';
 import { cn } from '@/lib/cn';
 
 const PRIORIDADE_COR: Record<string, string> = {
@@ -17,6 +28,7 @@ export function TarefasProcesso({ numeroProcesso }: { numeroProcesso: string }) 
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
+  const [checklistAberto, setChecklistAberto] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
@@ -64,12 +76,20 @@ export function TarefasProcesso({ numeroProcesso }: { numeroProcesso: string }) 
           <CheckSquare size={12} /> Tarefas
           {tarefas.length > 0 && <span className="normal-case font-normal text-gray-300 dark:text-gray-700">({tarefas.length})</span>}
         </div>
-        <button
-          onClick={() => setModalAberto(true)}
-          className="flex items-center gap-1.5 text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline"
-        >
-          <Plus size={13} /> Nova tarefa
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setChecklistAberto(true)}
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:underline"
+          >
+            <ListChecks size={13} /> Aplicar checklist
+          </button>
+          <button
+            onClick={() => setModalAberto(true)}
+            className="flex items-center gap-1.5 text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline"
+          >
+            <Plus size={13} /> Nova tarefa
+          </button>
+        </div>
       </div>
 
       {erro && <p className="text-xs text-red-600 dark:text-red-400 mb-2">{erro}</p>}
@@ -143,6 +163,119 @@ export function TarefasProcesso({ numeroProcesso }: { numeroProcesso: string }) 
           }}
         />
       )}
+
+      {checklistAberto && (
+        <AplicarChecklistModal
+          numeroProcesso={numeroProcesso}
+          onFechar={() => setChecklistAberto(false)}
+          onAplicado={() => {
+            setChecklistAberto(false);
+            carregar();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function AplicarChecklistModal({
+  numeroProcesso,
+  onFechar,
+  onAplicado,
+}: {
+  numeroProcesso: string;
+  onFechar: () => void;
+  onAplicado: () => void;
+}) {
+  const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
+  const [selecionado, setSelecionado] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [aplicando, setAplicando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    listarChecklistTemplates()
+      .then(setTemplates)
+      .catch((err) => setErro(err instanceof Error ? err.message : 'erro ao carregar checklists'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const aplicar = async () => {
+    if (!selecionado) return;
+    setAplicando(true);
+    setErro(null);
+    try {
+      await aplicarChecklistTemplate(selecionado, numeroProcesso);
+      onAplicado();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'erro ao aplicar checklist');
+    } finally {
+      setAplicando(false);
+    }
+  };
+
+  const template = templates.find((t) => t._id === selecionado);
+
+  return (
+    <div onClick={onFechar} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-2xl animate-scale-in"
+      >
+        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-5 py-3.5">
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <ListChecks size={15} className="text-brand-500" /> Aplicar checklist
+          </p>
+          <button onClick={onFechar} className="p-1 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 space-y-3">
+          {loading ? (
+            <p className="text-xs text-gray-400">Carregando…</p>
+          ) : templates.length === 0 ? (
+            <p className="text-xs text-gray-400">
+              Nenhum checklist criado ainda. Crie um em Configurações → Checklists.
+            </p>
+          ) : (
+            <>
+              <select
+                value={selecionado}
+                onChange={(e) => setSelecionado(e.target.value)}
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+              >
+                <option value="">Selecione um checklist…</option>
+                {templates.map((t) => (
+                  <option key={t._id} value={t._id}>
+                    {t.nome} ({t.itens.length} tarefas)
+                  </option>
+                ))}
+              </select>
+
+              {template && (
+                <ul className="text-xs text-gray-500 dark:text-gray-400 space-y-1 pl-1">
+                  {template.itens.map((item, i) => (
+                    <li key={i}>
+                      • {item.titulo} — {item.dias_prazo}d
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+
+          {erro && <p className="text-xs text-red-600 dark:text-red-400">{erro}</p>}
+
+          <button
+            onClick={aplicar}
+            disabled={!selecionado || aplicando}
+            className="w-full rounded-lg bg-brand-600 hover:bg-brand-700 py-2.5 text-sm font-medium text-white transition disabled:opacity-50"
+          >
+            {aplicando ? 'Aplicando…' : 'Aplicar checklist'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
