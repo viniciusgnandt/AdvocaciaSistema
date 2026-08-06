@@ -76,6 +76,35 @@ export class ClientesService {
    * E deliberadamente simples (match por nome normalizado, sem CPF/CNPJ) porque a fonte dos
    * nomes das partes e' texto livre extraido de publicacoes, nao um cadastro estruturado.
    */
+  /** Checa nome/CPF/CNPJ contra clientes ja cadastrados - usado pelo form de cadastro
+   * pra avisar antes de criar um duplicado sem querer (nao bloqueia, so avisa). */
+  async verificarDuplicidade(
+    tenantId: Types.ObjectId,
+    dados: { nome?: string; cpf?: string; cnpj?: string; ignorarId?: Types.ObjectId },
+  ) {
+    const condicoes: Record<string, unknown>[] = [];
+    if (dados.cpf?.trim()) condicoes.push({ cpf: dados.cpf.trim() });
+    if (dados.cnpj?.trim()) condicoes.push({ cnpj: dados.cnpj.trim() });
+    if (dados.nome?.trim()) {
+      const nomeNormalizado = normalizarNome(dados.nome);
+      const regexExato = new RegExp(`^${nomeNormalizado.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+      condicoes.push({ nome: regexExato });
+    }
+    if (condicoes.length === 0) return [];
+
+    const filtro: Record<string, unknown> = { tenant_id: tenantId, $or: condicoes };
+    if (dados.ignorarId) filtro._id = { $ne: dados.ignorarId };
+
+    const encontrados = await this.clienteModel.find(filtro).limit(5).exec();
+    return encontrados.map((c) => ({
+      id: String(c._id),
+      nome: c.nome,
+      cpf: c.cpf,
+      cnpj: c.cnpj,
+      motivo: (dados.cpf && c.cpf === dados.cpf.trim() && 'cpf') || (dados.cnpj && c.cnpj === dados.cnpj.trim() && 'cnpj') || 'nome',
+    }));
+  }
+
   async verificarConflitos(tenantId: Types.ObjectId, clienteId: Types.ObjectId) {
     const cliente = await this.clienteModel.findOne({ _id: clienteId, tenant_id: tenantId });
     if (!cliente) return [];

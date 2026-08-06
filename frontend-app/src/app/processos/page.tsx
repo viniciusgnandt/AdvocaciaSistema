@@ -50,6 +50,7 @@ import HistoricoAmigavel from '@/components/common/HistoricoAmigavel';
 import { BotaoFavorito } from '@/components/common/BotaoFavorito';
 import { useFavoritos } from '@/lib/useFavoritos';
 import { ModoApresentacao } from '@/components/processos/ModoApresentacao';
+import { ComparadorProcessos } from '@/components/processos/ComparadorProcessos';
 import { BotaoExportar } from '@/components/ui/BotaoExportar';
 import { exportarExcel, exportarPdf } from '@/lib/exportar';
 
@@ -100,6 +101,9 @@ function ProcessosPageConteudo() {
   const [erro, setErro] = useState<string | null>(null);
   const [somenteFavoritos, setSomenteFavoritos] = useState(false);
   const { ehFavorito, alternar } = useFavoritos();
+  const [comparando, setComparando] = useState(false);
+  const [selecionadosComparar, setSelecionadosComparar] = useState<Set<string>>(new Set());
+  const [comparadorAberto, setComparadorAberto] = useState(false);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -187,8 +191,42 @@ function ProcessosPageConteudo() {
               Favoritos
             </button>
           )}
+          {processos.length > 0 && (
+            <button
+              onClick={() => {
+                setComparando((v) => !v);
+                setSelecionadosComparar(new Set());
+              }}
+              className={cn(
+                'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border shrink-0',
+                comparando
+                  ? 'border-brand-300 bg-brand-50 text-brand-700 dark:border-brand-700 dark:bg-brand-900/20 dark:text-brand-400'
+                  : 'border-gray-200 text-gray-500 dark:border-gray-800 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700',
+              )}
+            >
+              <Scale size={12} />
+              Comparar
+            </button>
+          )}
           {processos.length > 0 && <BotaoExportar onExcel={exportarComoExcel} onPdf={exportarComoPdf} />}
         </div>
+
+        {comparando && (
+          <div className="mb-3 flex items-center gap-3 rounded-lg border border-brand-200 dark:border-brand-800 bg-brand-50 dark:bg-brand-900/20 px-3 py-2 text-sm">
+            <span className="text-brand-700 dark:text-brand-400">
+              {selecionadosComparar.size === 0
+                ? 'Selecione ao menos 2 processos para comparar'
+                : `${selecionadosComparar.size} selecionado${selecionadosComparar.size > 1 ? 's' : ''}`}
+            </span>
+            <button
+              onClick={() => setComparadorAberto(true)}
+              disabled={selecionadosComparar.size < 2}
+              className="ml-auto rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-1 text-xs font-medium text-white"
+            >
+              Comparar
+            </button>
+          </div>
+        )}
 
         {loading ? (
           <p className="text-gray-400 text-sm">Carregando…</p>
@@ -208,15 +246,36 @@ function ProcessosPageConteudo() {
               {processosExibidos.map((p) => (
                 <li
                   key={p._id}
-                  onClick={() => setSelecionado(p)}
+                  onClick={() => {
+                    if (comparando) {
+                      setSelecionadosComparar((atual) => {
+                        const novo = new Set(atual);
+                        if (novo.has(p.numero_cnj)) novo.delete(p.numero_cnj);
+                        else novo.add(p.numero_cnj);
+                        return novo;
+                      });
+                      return;
+                    }
+                    setSelecionado(p);
+                  }}
                   className={cn(
                     'rounded-xl border p-3 cursor-pointer transition-all',
-                    selecionado?._id === p._id
+                    comparando && selecionadosComparar.has(p.numero_cnj)
                       ? 'border-brand-400 dark:border-brand-700 bg-brand-50/50 dark:bg-brand-900/10'
-                      : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-700',
+                      : !comparando && selecionado?._id === p._id
+                        ? 'border-brand-400 dark:border-brand-700 bg-brand-50/50 dark:bg-brand-900/10'
+                        : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-700',
                   )}
                 >
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate flex items-center gap-1.5">
+                    {comparando && (
+                      <input
+                        type="checkbox"
+                        checked={selecionadosComparar.has(p.numero_cnj)}
+                        onChange={() => {}}
+                        className="shrink-0 rounded border-gray-300 dark:border-gray-700"
+                      />
+                    )}
                     {(() => {
                       const saude = saudeProcesso(p);
                       return saude ? <span className={cn('shrink-0 w-2 h-2 rounded-full', saude.cor)} title={saude.titulo} /> : null;
@@ -254,6 +313,13 @@ function ProcessosPageConteudo() {
           </div>
         )}
       </main>
+
+      {comparadorAberto && (
+        <ComparadorProcessos
+          processos={processos.filter((p) => selecionadosComparar.has(p.numero_cnj))}
+          onFechar={() => setComparadorAberto(false)}
+        />
+      )}
     </>
   );
 }

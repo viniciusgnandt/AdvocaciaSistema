@@ -19,6 +19,7 @@ import {
 import { Topbar } from '@/components/layout/Topbar';
 import { StatCard } from '@/components/ui/StatCard';
 import { CalculadoraPrazo } from '@/components/tarefas/CalculadoraPrazo';
+import { CalculadoraAtualizacaoMonetaria } from '@/components/tarefas/CalculadoraAtualizacaoMonetaria';
 import {
   atualizarTarefa,
   criarTarefa,
@@ -63,6 +64,7 @@ export default function TarefasPage() {
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [calculadoraAberta, setCalculadoraAberta] = useState(false);
+  const [calculadoraMonetariaAberta, setCalculadoraMonetariaAberta] = useState(false);
   const [tarefaEditando, setTarefaEditando] = useState<Tarefa | null>(null);
   const [colunaSobre, setColunaSobre] = useState<StatusTarefa | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -208,6 +210,13 @@ export default function TarefasPage() {
             className="ml-auto flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-800 px-3 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
           >
             <Calculator size={14} /> Calcular prazo
+          </button>
+
+          <button
+            onClick={() => setCalculadoraMonetariaAberta(true)}
+            className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-800 px-3 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+          >
+            <Calculator size={14} /> Atualização monetária
           </button>
 
           <button
@@ -393,6 +402,7 @@ export default function TarefasPage() {
       </main>
 
       {calculadoraAberta && <CalculadoraPrazo onFechar={() => setCalculadoraAberta(false)} />}
+      {calculadoraMonetariaAberta && <CalculadoraAtualizacaoMonetaria onFechar={() => setCalculadoraMonetariaAberta(false)} />}
 
       {modalAberto && (
         <TarefaModal

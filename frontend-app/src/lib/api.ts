@@ -121,6 +121,7 @@ export const CATALOGO_PERMISSOES = [
   'equipe.gerenciar',
   'escritorio.editar',
   'terceirizacao.gerenciar',
+  'processos.ver_todos',
 ] as const;
 
 export type PermissaoChave = (typeof CATALOGO_PERMISSOES)[number];
@@ -133,6 +134,7 @@ export const LABEL_PERMISSAO: Record<PermissaoChave, string> = {
   'equipe.gerenciar': 'Gerenciar equipe (convidar/editar/desativar)',
   'escritorio.editar': 'Editar dados do escritório',
   'terceirizacao.gerenciar': 'Gerenciar terceirização',
+  'processos.ver_todos': 'Ver processos de toda a equipe (sem carteira, padrão vê só os seus)',
 };
 
 export type Grupo = {
@@ -606,6 +608,17 @@ export function buscarCliente(id: string) {
   return request<Cliente>(`/clientes/${id}`);
 }
 
+export type ClienteDuplicado = { id: string; nome: string; cpf?: string; cnpj?: string; motivo: 'cpf' | 'cnpj' | 'nome' };
+
+export function verificarDuplicidadeCliente(dados: { nome?: string; cpf?: string; cnpj?: string; ignorarId?: string }) {
+  const params = new URLSearchParams();
+  if (dados.nome?.trim()) params.set('nome', dados.nome.trim());
+  if (dados.cpf?.trim()) params.set('cpf', dados.cpf.trim());
+  if (dados.cnpj?.trim()) params.set('cnpj', dados.cnpj.trim());
+  if (dados.ignorarId) params.set('ignorarId', dados.ignorarId);
+  return request<ClienteDuplicado[]>(`/clientes/verificar-duplicidade?${params.toString()}`);
+}
+
 export function atualizarCliente(id: string, dto: Partial<NovoCliente & { status: Cliente['status'] }>) {
   return request<Cliente>(`/clientes/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
 }
@@ -690,6 +703,24 @@ export function verificarSaudeApi() {
 
 export function calcularPrazo(dto: { data_inicial: string; dias: number; tipo: 'uteis' | 'corridos'; considerar_recesso?: boolean }) {
   return request<{ data_fatal: string }>('/prazos/calcular', { method: 'POST', body: JSON.stringify(dto) });
+}
+
+export function calcularAtualizacaoMonetaria(dto: {
+  valor: number;
+  data_inicial: string;
+  data_final: string;
+  indice_mensal: number;
+  juros_mensal?: number;
+  tipo_juros?: 'simples' | 'composto';
+}) {
+  return request<{
+    meses: number;
+    valor_original: number;
+    valor_corrigido: number;
+    valor_final: number;
+    juros_aplicados: number;
+    correcao_aplicada: number;
+  }>('/prazos/calcular-atualizacao-monetaria', { method: 'POST', body: JSON.stringify(dto) });
 }
 
 export function listarTarefas(

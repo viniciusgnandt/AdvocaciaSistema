@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsIn, IsObject, IsOptional, IsString } from 'class-validator';
+import { EhCpfOuCnpjValido } from '../../../common/decorators/eh-documento-valido.decorator';
 
 export type EnderecoDto = {
   cep?: string;
@@ -23,11 +24,13 @@ export class CriarClienteDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @EhCpfOuCnpjValido()
   cpf?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @EhCpfOuCnpjValido()
   cnpj?: string;
 
   @ApiProperty({ required: false })

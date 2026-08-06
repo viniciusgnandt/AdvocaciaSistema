@@ -30,6 +30,23 @@ export class ClientesController {
     return this.clientesService.listar(new Types.ObjectId(tenantId), busca);
   }
 
+  @Get('verificar-duplicidade')
+  @ApiOperation({ summary: 'Checa se ja existe cliente com mesmo nome/CPF/CNPJ (nao bloqueia, so avisa)' })
+  async verificarDuplicidade(
+    @Headers('x-tenant-id') tenantId: string,
+    @Query('nome') nome?: string,
+    @Query('cpf') cpf?: string,
+    @Query('cnpj') cnpj?: string,
+    @Query('ignorarId') ignorarId?: string,
+  ) {
+    return this.clientesService.verificarDuplicidade(new Types.ObjectId(tenantId), {
+      nome,
+      cpf,
+      cnpj,
+      ignorarId: ignorarId ? new Types.ObjectId(ignorarId) : undefined,
+    });
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Detalha um cliente pelo id' })
   async detalhar(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string) {

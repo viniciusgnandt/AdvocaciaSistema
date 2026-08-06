@@ -28,6 +28,7 @@ export class ProcessosController {
   @ApiOperation({ summary: 'Lista os processos ja enriquecidos com dados do DataJud, com filtros e ordenacao' })
   async listar(
     @Headers('x-tenant-id') tenantId: string,
+    @CurrentUser() usuario: UsuarioAutenticado,
     @Query('tribunal') tribunal?: string,
     @Query('classe') classe?: string,
     @Query('status') status?: string,
@@ -40,6 +41,14 @@ export class ProcessosController {
     if (tribunal) filtro.tribunal = tribunal;
     if (classe) filtro.classe = classe;
     if (tag) filtro.tags = tag;
+    // carteira: quem nao e' admin e nao tem "processos.ver_todos" so enxerga os
+    // processos onde e' o responsavel (os sem responsavel definido continuam visiveis
+    // a todos, pra nao esconder casos ainda nao atribuidos)
+    if (usuario.perfil !== 'admin' && !usuario.permissoes?.includes('processos.ver_todos')) {
+      filtro.$and = [
+        { $or: [{ responsavel_id: { $exists: false } }, { responsavel_id: new Types.ObjectId(usuario.sub) }] },
+      ];
+    }
     if (busca) {
       const regex = { $regex: escapeRegex(busca), $options: 'i' };
       filtro.$or = [{ numero_cnj: regex }, { parte_ativa: regex }, { parte_passiva: regex }];

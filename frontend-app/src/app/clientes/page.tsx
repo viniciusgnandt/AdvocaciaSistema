@@ -7,6 +7,7 @@ import {
   Check,
   Copy,
   Download,
+  FileSignature,
   FileText,
   Gavel,
   Globe,
@@ -37,8 +38,10 @@ import {
   listarProcessos,
   processosDoCliente,
   verificarConflitosCliente,
+  verificarDuplicidadeCliente,
   vincularProcessoAoCliente,
   type Cliente,
+  type ClienteDuplicado,
   type DocumentoProcesso,
   type NovoCliente,
   type Processo,
@@ -46,6 +49,9 @@ import {
 import { cn } from '@/lib/cn';
 import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
 import HistoricoAmigavel from '@/components/common/HistoricoAmigavel';
+import { GerarProcuracaoModal } from '@/components/clientes/GerarProcuracaoModal';
+import { OnboardingClienteModal } from '@/components/clientes/OnboardingClienteModal';
+import { validarCpf, validarCnpj } from '@/lib/documento';
 import { BotaoFavorito } from '@/components/common/BotaoFavorito';
 import { useFavoritos } from '@/lib/useFavoritos';
 
@@ -90,6 +96,8 @@ function ClientesPageConteudo() {
   const [erro, setErro] = useState<string | null>(null);
   const [somenteFavoritos, setSomenteFavoritos] = useState(false);
   const { ehFavorito, alternar } = useFavoritos();
+  const [modalProcuracao, setModalProcuracao] = useState(false);
+  const [modalOnboarding, setModalOnboarding] = useState(false);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -137,9 +145,11 @@ function ClientesPageConteudo() {
   }, [selecionado, carregarProcessosEArquivos]);
 
   const handleSalvo = async (cliente: Cliente) => {
+    const eraNovo = modal === 'novo';
     setModal(null);
     await carregar();
     setSelecionado(cliente);
+    if (eraNovo) setModalOnboarding(true);
   };
 
   const handleVincularProcesso = async (numeroCnj: string) => {
@@ -327,6 +337,7 @@ function ClientesPageConteudo() {
                 )}
 
                 <PortalCliente
+                  id="secao-portal-cliente"
                   cliente={selecionado}
                   onAtualizado={(c) => {
                     setSelecionado(c);
@@ -334,7 +345,14 @@ function ClientesPageConteudo() {
                   }}
                 />
 
-                <div>
+                <button
+                  onClick={() => setModalProcuracao(true)}
+                  className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-800 rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 w-fit"
+                >
+                  <FileSignature size={14} /> Gerar procuração
+                </button>
+
+                <div id="secao-processos-vinculados">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 flex items-center gap-1">
                       <Gavel size={12} /> Processos vinculados ({processos.length})
@@ -402,7 +420,7 @@ function ClientesPageConteudo() {
                   </div>
                 )}
 
-                <div>
+                <div id="secao-arquivos-cliente">
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3 flex items-center gap-1">
                     <Paperclip size={12} /> Arquivos do cliente
                   </p>
@@ -428,11 +446,35 @@ function ClientesPageConteudo() {
           onSalvo={handleSalvo}
         />
       )}
+
+      {modalOnboarding && selecionado && (
+        <OnboardingClienteModal
+          cliente={selecionado}
+          onFechar={() => setModalOnboarding(false)}
+          onGerarProcuracao={() => setModalProcuracao(true)}
+        />
+      )}
+
+      {modalProcuracao && selecionado && (
+        <GerarProcuracaoModal
+          cliente={selecionado}
+          processosVinculados={processos.map((p) => ({ numero_cnj: p.numero_cnj }))}
+          onFechar={() => setModalProcuracao(false)}
+        />
+      )}
     </>
   );
 }
 
-function PortalCliente({ cliente, onAtualizado }: { cliente: Cliente; onAtualizado: (c: Cliente) => void }) {
+function PortalCliente({
+  cliente,
+  onAtualizado,
+  id,
+}: {
+  cliente: Cliente;
+  onAtualizado: (c: Cliente) => void;
+  id?: string;
+}) {
   const [carregando, setCarregando] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -472,7 +514,7 @@ function PortalCliente({ cliente, onAtualizado }: { cliente: Cliente; onAtualiza
   };
 
   return (
-    <div className="rounded-lg border border-gray-100 dark:border-gray-800 p-3">
+    <div id={id} className="rounded-lg border border-gray-100 dark:border-gray-800 p-3">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 flex items-center gap-1">
           <Globe size={12} /> Portal do cliente
@@ -634,9 +676,38 @@ function ClienteModal({
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  const documentoAtual = form.tipo === 'pf' ? form.cpf : form.cnpj;
+  const documentoInvalido = !!documentoAtual?.trim() && !(form.tipo === 'pf' ? validarCpf(documentoAtual) : validarCnpj(documentoAtual));
+
+  const [duplicados, setDuplicados] = useState<ClienteDuplicado[]>([]);
+  useEffect(() => {
+    const nome = form.nome.trim();
+    const doc = (form.tipo === 'pf' ? form.cpf : form.cnpj)?.trim();
+    if (nome.length < 3 && !doc) {
+      setDuplicados([]);
+      return;
+    }
+    const timeout = setTimeout(() => {
+      verificarDuplicidadeCliente({
+        nome: nome.length >= 3 ? nome : undefined,
+        cpf: form.tipo === 'pf' ? doc : undefined,
+        cnpj: form.tipo === 'pj' ? doc : undefined,
+        ignorarId: clienteEditando?._id,
+      })
+        .then(setDuplicados)
+        .catch(() => setDuplicados([]));
+    }, 500);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.nome, form.cpf, form.cnpj, form.tipo]);
+
   const salvar = async () => {
     if (!form.nome.trim()) {
       setErro('Informe o nome.');
+      return;
+    }
+    if (documentoInvalido) {
+      setErro(form.tipo === 'pf' ? 'CPF inválido.' : 'CNPJ inválido.');
       return;
     }
     setSalvando(true);
@@ -662,6 +733,18 @@ function ClienteModal({
         </div>
 
         <div className="px-6 py-5 space-y-4 overflow-y-auto">
+          {duplicados.length > 0 && (
+            <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 space-y-1">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Possível cliente duplicado</p>
+              {duplicados.map((d) => (
+                <p key={d.id} className="text-xs text-amber-600 dark:text-amber-400">
+                  <span className="font-medium">{d.nome}</span> já cadastrado
+                  {d.motivo === 'cpf' ? ' com este CPF' : d.motivo === 'cnpj' ? ' com este CNPJ' : ' com nome igual'}.
+                </p>
+              ))}
+            </div>
+          )}
+
           <div className="flex gap-2">
             {(['pf', 'pj'] as const).map((tipo) => (
               <button
@@ -694,8 +777,16 @@ function ClienteModal({
               onChange={(e) =>
                 setForm(form.tipo === 'pf' ? { ...form, cpf: e.target.value } : { ...form, cnpj: e.target.value })
               }
-              className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+              className={cn(
+                'w-full text-sm rounded-lg border bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100',
+                documentoInvalido ? 'border-red-400 dark:border-red-700' : 'border-gray-200 dark:border-gray-800',
+              )}
             />
+            {documentoInvalido && (
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                {form.tipo === 'pf' ? 'CPF inválido — confira os dígitos.' : 'CNPJ inválido — confira os dígitos.'}
+              </p>
+            )}
           </Campo>
 
           <Campo label="E-mail">

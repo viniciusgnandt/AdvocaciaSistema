@@ -12,6 +12,7 @@ export const CATALOGO_PERMISSOES = [
   'equipe.gerenciar',
   'escritorio.editar',
   'terceirizacao.gerenciar',
+  'processos.ver_todos',
 ] as const;
 
 export type Permissao = (typeof CATALOGO_PERMISSOES)[number];

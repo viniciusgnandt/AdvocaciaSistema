@@ -7,6 +7,7 @@ import { getToken } from '@/lib/api';
 import { Sidebar } from './Sidebar';
 import { MobileBottomNav } from './MobileBottomNav';
 import { AtalhosTeclado } from './AtalhosTeclado';
+import { OfflineBanner } from './OfflineBanner';
 
 const ROTAS_PUBLICAS = ['/login', '/registro', '/status'];
 
@@ -63,6 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <AtalhosTeclado />
+      <OfflineBanner />
     </div>
   );
 }
