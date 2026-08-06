@@ -65,7 +65,10 @@ export class ClientesService {
   }
 
   async processosVinculados(tenantId: Types.ObjectId, clienteId: Types.ObjectId) {
-    return this.processoModel.find({ tenant_id: tenantId, cliente_id: clienteId }).sort({ updated_at: -1 }).exec();
+    return this.processoModel
+      .find({ tenant_id: tenantId, $or: [{ cliente_id: clienteId }, { clientes_adicionais: clienteId }] })
+      .sort({ updated_at: -1 })
+      .exec();
   }
 
   /**
@@ -143,7 +146,9 @@ export class ClientesService {
    * processo em si.
    */
   async arquivosDosProcessos(tenantId: Types.ObjectId, clienteId: Types.ObjectId) {
-    const processos = await this.processoModel.find({ tenant_id: tenantId, cliente_id: clienteId }, 'numero_cnj').exec();
+    const processos = await this.processoModel
+      .find({ tenant_id: tenantId, $or: [{ cliente_id: clienteId }, { clientes_adicionais: clienteId }] }, 'numero_cnj')
+      .exec();
     const numeros = processos.map((p) => p.numero_cnj);
     if (numeros.length === 0) return [];
 
@@ -158,6 +163,19 @@ export class ClientesService {
    * antes de bater o nome, ou quando o nome da parte diverge do nome cadastrado). */
   async vincularProcesso(tenantId: Types.ObjectId, clienteId: Types.ObjectId, numeroCnj: string) {
     const numeroLimpo = numeroCnj.replace(/\D/g, '');
+    const processo = await this.processoModel.findOne({ tenant_id: tenantId, numero_cnj: numeroLimpo });
+    if (!processo) return null;
+
+    // se o processo ja tem outro cliente principal, este vira litisconsorte
+    // (clientes_adicionais) em vez de substituir o vinculo existente
+    if (processo.cliente_id && String(processo.cliente_id) !== String(clienteId)) {
+      return this.processoModel.findOneAndUpdate(
+        { tenant_id: tenantId, numero_cnj: numeroLimpo },
+        { $addToSet: { clientes_adicionais: clienteId } },
+        { new: true },
+      );
+    }
+
     return this.processoModel.findOneAndUpdate(
       { tenant_id: tenantId, numero_cnj: numeroLimpo },
       { $set: { cliente_id: clienteId } },
@@ -167,9 +185,20 @@ export class ClientesService {
 
   async desvincularProcesso(tenantId: Types.ObjectId, clienteId: Types.ObjectId, numeroCnj: string) {
     const numeroLimpo = numeroCnj.replace(/\D/g, '');
+    const processo = await this.processoModel.findOne({ tenant_id: tenantId, numero_cnj: numeroLimpo });
+    if (!processo) return null;
+
+    if (String(processo.cliente_id) === String(clienteId)) {
+      return this.processoModel.findOneAndUpdate(
+        { tenant_id: tenantId, numero_cnj: numeroLimpo },
+        { $unset: { cliente_id: '' } },
+        { new: true },
+      );
+    }
+
     return this.processoModel.findOneAndUpdate(
-      { tenant_id: tenantId, numero_cnj: numeroLimpo, cliente_id: clienteId },
-      { $unset: { cliente_id: '' } },
+      { tenant_id: tenantId, numero_cnj: numeroLimpo },
+      { $pull: { clientes_adicionais: clienteId } },
       { new: true },
     );
   }
@@ -198,6 +227,7 @@ export class ClientesService {
 
     // desfaz o vinculo nos processos - o cliente nao existe mais, o processo continua existindo
     await this.processoModel.updateMany({ tenant_id: tenantId, cliente_id: clienteId }, { $unset: { cliente_id: '' } });
+    await this.processoModel.updateMany({ tenant_id: tenantId, clientes_adicionais: clienteId }, { $pull: { clientes_adicionais: clienteId } });
     return true;
   }
 

@@ -77,6 +77,12 @@ export class Processo extends Document {
   @Prop({ type: Types.ObjectId, index: true })
   cliente_id?: Types.ObjectId; // vinculo automatico: nome do cliente bate com parte_ativa/parte_passiva
 
+  // litisconsorcio: outros clientes do escritorio que tambem sao parte no mesmo
+  // processo, alem do cliente_id "principal" - aditivo, nao muda o comportamento de
+  // quem so tem um cliente por processo
+  @Prop({ type: [Types.ObjectId], default: [], index: true })
+  clientes_adicionais: Types.ObjectId[];
+
   @Prop()
   data_ajuizamento?: Date;
 

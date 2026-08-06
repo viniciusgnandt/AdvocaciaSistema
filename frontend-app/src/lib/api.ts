@@ -421,6 +421,7 @@ export type Processo = {
   honorarios?: Honorarios;
   responsavel_id?: string;
   tags: string[];
+  clientes_adicionais?: string[];
 };
 
 export type AtualizarProcesso = {

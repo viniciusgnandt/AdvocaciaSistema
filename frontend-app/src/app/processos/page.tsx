@@ -324,7 +324,7 @@ function ProcessosPageConteudo() {
   );
 }
 
-function ClienteVinculado({ clienteId }: { clienteId: string }) {
+function ClienteVinculado({ clienteId, litisconsorte }: { clienteId: string; litisconsorte?: boolean }) {
   const router = useRouter();
   const [nome, setNome] = useState<string | null>(null);
 
@@ -339,9 +339,9 @@ function ClienteVinculado({ clienteId }: { clienteId: string }) {
   return (
     <button
       onClick={() => router.push('/clientes')}
-      className="mt-2 inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400 hover:underline"
+      className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400 hover:underline"
     >
-      <UserRound size={11} /> Cliente: {nome}
+      <UserRound size={11} /> {litisconsorte ? 'Litisconsorte' : 'Cliente'}: {nome}
     </button>
   );
 }
@@ -418,7 +418,12 @@ function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtu
         </div>
         <p className="font-mono text-sm text-gray-500 dark:text-gray-400 mt-1">{formatarNumeroCnj(processo.numero_cnj)}</p>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{processo.classe ?? 'Classe não identificada'}</p>
-        {processo.cliente_id && <ClienteVinculado clienteId={processo.cliente_id} />}
+        {(processo.cliente_id || (processo.clientes_adicionais?.length ?? 0) > 0) && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {processo.cliente_id && <ClienteVinculado clienteId={processo.cliente_id} />}
+            {processo.clientes_adicionais?.map((id) => <ClienteVinculado key={id} clienteId={id} litisconsorte />)}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
