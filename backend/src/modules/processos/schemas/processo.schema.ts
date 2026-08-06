@@ -117,6 +117,11 @@ export class Processo extends Document {
 
   @Prop({ type: HonorariosSchema })
   honorarios?: Honorarios;
+
+  // advogado responsavel pela carteira do processo - usado no painel executivo do
+  // socio (carga de trabalho por pessoa) e, futuramente, em permissao por carteira
+  @Prop({ type: Types.ObjectId, index: true })
+  responsavel_id?: Types.ObjectId;
 }
 
 export const ProcessoSchema = SchemaFactory.createForClass(Processo);

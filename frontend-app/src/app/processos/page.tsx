@@ -472,6 +472,7 @@ function DetalhesProcessoForm({
     observacoes: processo.observacoes,
     honorarios: processo.honorarios,
     status: processo.status,
+    responsavel_id: processo.responsavel_id,
   });
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -541,6 +542,22 @@ function DetalhesProcessoForm({
           />
         </label>
       </div>
+
+      <label className="block">
+        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Advogado responsável</span>
+        <select
+          value={form.responsavel_id ?? ''}
+          onChange={(e) => setForm({ ...form, responsavel_id: e.target.value || undefined })}
+          className={inputCls}
+        >
+          <option value="">—</option>
+          {usuarios.map((u) => (
+            <option key={u._id} value={u._id}>
+              {u.nome}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <label className="block">
         <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Status</span>

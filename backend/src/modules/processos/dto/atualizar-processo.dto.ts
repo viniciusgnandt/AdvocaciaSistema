@@ -63,4 +63,9 @@ export class AtualizarProcessoDto {
   @IsOptional()
   @IsIn(['ativo', 'suspenso', 'encerrado', 'arquivado'])
   status?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  responsavel_id?: string;
 }

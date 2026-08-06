@@ -77,13 +77,14 @@ function mesAtualISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-type Categoria = 'processos' | 'financeiro' | 'tarefas' | 'clientes';
+type Categoria = 'processos' | 'financeiro' | 'tarefas' | 'clientes' | 'equipe';
 
 const CATEGORIAS: { id: Categoria; label: string; icon: typeof Gavel }[] = [
   { id: 'processos', label: 'Processos', icon: Gavel },
   { id: 'financeiro', label: 'Financeiro', icon: Wallet },
   { id: 'tarefas', label: 'Tarefas', icon: ListChecks },
   { id: 'clientes', label: 'Clientes', icon: Users },
+  { id: 'equipe', label: 'Equipe', icon: Briefcase },
 ];
 
 export default function RelatoriosPage() {
@@ -160,6 +161,7 @@ export default function RelatoriosPage() {
             {categoria === 'financeiro' && <RelatorioFinanceiro lancamentos={lancamentos} processos={processos} usuarios={usuarios} />}
             {categoria === 'tarefas' && <RelatorioTarefas tarefas={tarefas} usuarios={usuarios} />}
             {categoria === 'clientes' && <RelatorioClientes clientes={clientes} processos={processos} />}
+            {categoria === 'equipe' && <RelatorioEquipe usuarios={usuarios} processos={processos} tarefas={tarefas} lancamentos={lancamentos} />}
           </>
         )}
       </main>
@@ -852,6 +854,103 @@ function RelatorioClientes({ clientes, processos }: { clientes: Cliente[]; proce
             </PieChart>
           </ResponsiveContainer>
         </Cartao>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Equipe (painel executivo do sócio)
+// ---------------------------------------------------------------------------
+
+function RelatorioEquipe({
+  usuarios,
+  processos,
+  tarefas,
+  lancamentos,
+}: {
+  usuarios: Usuario[];
+  processos: Processo[];
+  tarefas: Tarefa[];
+  lancamentos: Lancamento[];
+}) {
+  const linhas = useMemo(() => {
+    const processoPorNumero = new Map(processos.map((p) => [p.numero_cnj, p]));
+    const faturamentoPorSocio = new Map<string, number>();
+    lancamentos
+      .filter((l) => l.categoria === 'honorarios_exito' && l.numero_processo)
+      .forEach((l) => {
+        const processo = processoPorNumero.get(l.numero_processo!);
+        (processo?.honorarios?.divisoes ?? []).forEach((d) => {
+          faturamentoPorSocio.set(d.usuario_id, (faturamentoPorSocio.get(d.usuario_id) ?? 0) + (l.valor * d.percentual) / 100);
+        });
+      });
+
+    return usuarios
+      .map((u) => {
+        const processosAtivos = processos.filter((p) => p.responsavel_id === u._id && p.status === 'ativo').length;
+        const tarefasAbertas = tarefas.filter((t) => t.responsavel_id === u._id && t.status !== 'concluida').length;
+        const tarefasAtrasadas = tarefas.filter((t) => t.responsavel_id === u._id && t.status === 'atrasada').length;
+        const faturamento = faturamentoPorSocio.get(u._id) ?? 0;
+        return { usuario: u, processosAtivos, tarefasAbertas, tarefasAtrasadas, faturamento };
+      })
+      .sort((a, b) => b.faturamento - a.faturamento || b.processosAtivos - a.processosAtivos);
+  }, [usuarios, processos, tarefas, lancamentos]);
+
+  const insights = useMemo<Insight[]>(() => {
+    const lista: Insight[] = [];
+    const semCarteira = processos.filter((p) => p.status === 'ativo' && !p.responsavel_id).length;
+    if (semCarteira > 0) {
+      lista.push({ mensagem: `${semCarteira} processo${semCarteira > 1 ? 's' : ''} ativo${semCarteira > 1 ? 's' : ''} sem advogado responsável definido.`, variante: 'warning' });
+    }
+    const sobrecarregado = linhas.find((l) => l.tarefasAbertas > 10);
+    if (sobrecarregado) {
+      lista.push({ mensagem: `${sobrecarregado.usuario.nome.split(' ')[0]} está com ${sobrecarregado.tarefasAbertas} tarefas abertas — considere redistribuir.`, variante: 'warning' });
+    }
+    return lista;
+  }, [processos, linhas]);
+
+  return (
+    <div className="space-y-5">
+      <InsightsPanel insights={insights} />
+
+      <div className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 dark:border-gray-800 text-left text-xs text-gray-400 uppercase tracking-wide">
+              <th className="px-4 py-3 font-medium">Advogado</th>
+              <th className="px-4 py-3 font-medium">Processos ativos</th>
+              <th className="px-4 py-3 font-medium">Tarefas abertas</th>
+              <th className="px-4 py-3 font-medium">Tarefas atrasadas</th>
+              <th className="px-4 py-3 font-medium">Honorários de êxito (split)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map(({ usuario, processosAtivos, tarefasAbertas, tarefasAtrasadas, faturamento }) => (
+              <tr key={usuario._id} className="border-b border-gray-50 dark:border-gray-800/50 last:border-0">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    {usuario.foto_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={usuario.foto_url} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-brand-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                        {usuario.nome.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="text-gray-800 dark:text-gray-200">{usuario.nome}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{processosAtivos}</td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{tarefasAbertas}</td>
+                <td className={cn('px-4 py-3', tarefasAtrasadas > 0 ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-gray-600 dark:text-gray-300')}>
+                  {tarefasAtrasadas}
+                </td>
+                <td className="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">{formatarMoeda(faturamento)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
