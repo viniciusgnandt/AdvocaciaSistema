@@ -17,6 +17,16 @@ export const MovimentoProcessoSchema = SchemaFactory.createForClass(MovimentoPro
 export type TipoHonorario = 'fixo' | 'percentual' | 'exito' | 'misto';
 
 @Schema({ _id: false })
+export class DivisaoHonorario {
+  @Prop({ type: Types.ObjectId, required: true })
+  usuario_id: Types.ObjectId;
+
+  @Prop({ required: true })
+  percentual: number;
+}
+export const DivisaoHonorarioSchema = SchemaFactory.createForClass(DivisaoHonorario);
+
+@Schema({ _id: false })
 export class Honorarios {
   @Prop({ enum: ['fixo', 'percentual', 'exito', 'misto'] })
   tipo?: TipoHonorario;
@@ -29,6 +39,9 @@ export class Honorarios {
 
   @Prop()
   observacoes?: string;
+
+  @Prop({ type: [DivisaoHonorarioSchema], default: [] })
+  divisoes: DivisaoHonorario[];
 }
 export const HonorariosSchema = SchemaFactory.createForClass(Honorarios);
 

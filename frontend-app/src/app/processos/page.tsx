@@ -29,11 +29,13 @@ import {
   chaveMovimentacao,
   listarProcessos,
   listarPublicacoes,
+  listarUsuarios,
   type AtualizarProcesso,
   type FiltrosProcessos,
   type Processo,
   type Publicacao,
   type TipoHonorario,
+  type Usuario,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
@@ -450,6 +452,13 @@ function DetalhesProcessoForm({
   });
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+
+  useEffect(() => {
+    listarUsuarios()
+      .then(setUsuarios)
+      .catch(() => undefined);
+  }, []);
 
   const salvar = async () => {
     setSalvando(true);
@@ -462,6 +471,27 @@ function DetalhesProcessoForm({
     } finally {
       setSalvando(false);
     }
+  };
+
+  const divisoes = form.honorarios?.divisoes ?? [];
+  const somaDivisoes = divisoes.reduce((acc, d) => acc + (d.percentual || 0), 0);
+
+  const adicionarDivisao = () => {
+    const disponivel = usuarios.find((u) => !divisoes.some((d) => d.usuario_id === u._id));
+    if (!disponivel) return;
+    setForm({
+      ...form,
+      honorarios: { ...form.honorarios, divisoes: [...divisoes, { usuario_id: disponivel._id, percentual: 0 }] },
+    });
+  };
+
+  const atualizarDivisao = (index: number, patch: Partial<{ usuario_id: string; percentual: number }>) => {
+    const novas = divisoes.map((d, i) => (i === index ? { ...d, ...patch } : d));
+    setForm({ ...form, honorarios: { ...form.honorarios, divisoes: novas } });
+  };
+
+  const removerDivisao = (index: number) => {
+    setForm({ ...form, honorarios: { ...form.honorarios, divisoes: divisoes.filter((_, i) => i !== index) } });
   };
 
   const inputCls =
@@ -540,6 +570,51 @@ function DetalhesProcessoForm({
           />
         </label>
       </div>
+
+      {form.honorarios?.tipo && (
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Split entre sócios/advogados</span>
+            {divisoes.length > 0 && (
+              <span className={cn('text-xs', somaDivisoes === 100 ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400')}>
+                {somaDivisoes}% distribuído
+              </span>
+            )}
+          </div>
+          <div className="space-y-2">
+            {divisoes.map((d, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <select
+                  value={d.usuario_id}
+                  onChange={(e) => atualizarDivisao(i, { usuario_id: e.target.value })}
+                  className={cn(inputCls, 'flex-1')}
+                >
+                  {usuarios.map((u) => (
+                    <option key={u._id} value={u._id}>
+                      {u.nome}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  value={d.percentual || ''}
+                  onChange={(e) => atualizarDivisao(i, { percentual: Number(e.target.value) })}
+                  placeholder="%"
+                  className={cn(inputCls, 'w-20')}
+                />
+                <button onClick={() => removerDivisao(i)} className="p-2 rounded-lg text-gray-400 hover:text-red-500">
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+          {divisoes.length < usuarios.length && (
+            <button onClick={adicionarDivisao} className="mt-2 text-xs text-brand-600 dark:text-brand-400 hover:underline">
+              + Adicionar sócio/advogado
+            </button>
+          )}
+        </div>
+      )}
 
       <label className="block">
         <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Observações</span>

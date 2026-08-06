@@ -340,11 +340,14 @@ export type Movimentacao = { data: string; descricao: string; codigo?: number };
 
 export type TipoHonorario = 'fixo' | 'percentual' | 'exito' | 'misto';
 
+export type DivisaoHonorario = { usuario_id: string; percentual: number };
+
 export type Honorarios = {
   tipo?: TipoHonorario;
   valor_fixo?: number;
   percentual?: number;
   observacoes?: string;
+  divisoes?: DivisaoHonorario[];
 };
 
 export type Processo = {

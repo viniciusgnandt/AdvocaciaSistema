@@ -1,5 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsIn, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
+
+export class DivisaoHonorarioDto {
+  @ApiProperty()
+  @IsString()
+  usuario_id: string;
+
+  @ApiProperty()
+  @IsNumber()
+  percentual: number;
+}
 
 export class HonorariosDto {
   @ApiProperty({ required: false, enum: ['fixo', 'percentual', 'exito', 'misto'] })
@@ -21,6 +31,11 @@ export class HonorariosDto {
   @IsOptional()
   @IsString()
   observacoes?: string;
+
+  @ApiProperty({ required: false, type: [DivisaoHonorarioDto] })
+  @IsOptional()
+  @IsArray()
+  divisoes?: DivisaoHonorarioDto[];
 }
 
 export class AtualizarProcessoDto {

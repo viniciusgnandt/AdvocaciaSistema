@@ -100,6 +100,28 @@ export default function RelatoriosPage() {
     return Array.from(contagem.entries()).map(([nome, v]) => ({ nome, Concluídas: v.concluidas, Pendentes: v.pendentes }));
   }, [tarefas, usuarios]);
 
+  const honorariosPorSocio = useMemo(() => {
+    if (!lancamentos || !processos || !usuarios) return [];
+    const nomePorId = new Map(usuarios.map((u) => [u._id, u.nome.split(' ')[0]]));
+    const processoPorNumero = new Map(processos.map((p) => [p.numero_cnj, p]));
+    const totalPorSocio = new Map<string, number>();
+
+    lancamentos
+      .filter((l) => l.categoria === 'honorarios_exito' && l.numero_processo)
+      .forEach((l) => {
+        const processo = processoPorNumero.get(l.numero_processo!);
+        const divisoes = processo?.honorarios?.divisoes ?? [];
+        if (divisoes.length === 0) return;
+        divisoes.forEach((d) => {
+          const nome = nomePorId.get(d.usuario_id) ?? 'Desconhecido';
+          const parte = (l.valor * d.percentual) / 100;
+          totalPorSocio.set(nome, (totalPorSocio.get(nome) ?? 0) + parte);
+        });
+      });
+
+    return Array.from(totalPorSocio.entries()).map(([nome, total]) => ({ nome, total }));
+  }, [lancamentos, processos, usuarios]);
+
   const carregando = !processos || !tarefas || !lancamentos || !usuarios;
 
   return (
@@ -170,6 +192,20 @@ export default function RelatoriosPage() {
                 </BarChart>
               </ResponsiveContainer>
             </Cartao>
+
+            {honorariosPorSocio.length > 0 && (
+              <Cartao titulo="Honorários de êxito por sócio/advogado" subtitulo="Split configurado no processo, aplicado sobre os lançamentos já gerados">
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={honorariosPorSocio}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-gray-100 dark:stroke-gray-800" />
+                    <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v) => formatarMoeda(Number(v))} />
+                    <Bar dataKey="total" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Cartao>
+            )}
           </div>
         )}
       </main>
