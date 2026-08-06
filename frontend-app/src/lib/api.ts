@@ -487,6 +487,8 @@ export type Cliente = {
   observacoes?: string;
   origem_lead?: string;
   endereco?: Endereco;
+  portal_ativo?: boolean;
+  portal_token?: string;
 };
 
 export type NovoCliente = {
@@ -515,6 +517,35 @@ export function listarClientes(busca?: string) {
 
 export function criarCliente(dto: NovoCliente) {
   return request<Cliente>('/clientes', { method: 'POST', body: JSON.stringify(dto) });
+}
+
+export function ativarPortalCliente(id: string) {
+  return request<Cliente>(`/clientes/${id}/portal/ativar`, { method: 'POST' });
+}
+
+export function desativarPortalCliente(id: string) {
+  return request<Cliente>(`/clientes/${id}/portal/desativar`, { method: 'POST' });
+}
+
+export type PortalDados = {
+  cliente: { nome: string; tipo: 'pf' | 'pj' };
+  processos: {
+    numero_cnj: string;
+    tribunal?: string;
+    classe?: string;
+    status: string;
+    parte_ativa?: string;
+    parte_passiva?: string;
+    data_ajuizamento?: string;
+    proxima_audiencia?: string;
+    ultimas_movimentacoes: Movimentacao[];
+  }[];
+  documentos: { _id: string; nome: string; numero_processo?: string; created_at: string }[];
+  lancamentos: { _id: string; tipo: TipoLancamento; descricao: string; valor: number; status: StatusLancamento; data_vencimento: string; numero_processo?: string }[];
+};
+
+export function buscarPortal(token: string) {
+  return request<PortalDados>(`/portal/${token}`);
 }
 
 export function verificarConflitosCliente(id: string) {

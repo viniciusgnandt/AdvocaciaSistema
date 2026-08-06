@@ -49,6 +49,24 @@ export class ClientesController {
     return this.clientesService.verificarConflitos(new Types.ObjectId(tenantId), new Types.ObjectId(id));
   }
 
+  @Post(':id/portal/ativar')
+  @ApiOperation({ summary: 'Ativa o portal do cliente (gera um link de acesso somente leitura, sem senha)' })
+  async ativarPortal(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string, @CurrentUser() usuario: UsuarioAutenticado) {
+    const cliente = await this.clientesService.ativarPortal(new Types.ObjectId(tenantId), new Types.ObjectId(id));
+    if (!cliente) return { erro: 'cliente nao encontrado' };
+    this.auditoriaService.registrar(usuario, 'atualizar', 'cliente', id, `Portal ativado para ${cliente.nome}`);
+    return cliente;
+  }
+
+  @Post(':id/portal/desativar')
+  @ApiOperation({ summary: 'Desativa o portal do cliente e invalida o link anterior' })
+  async desativarPortal(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string, @CurrentUser() usuario: UsuarioAutenticado) {
+    const cliente = await this.clientesService.desativarPortal(new Types.ObjectId(tenantId), new Types.ObjectId(id));
+    if (!cliente) return { erro: 'cliente nao encontrado' };
+    this.auditoriaService.registrar(usuario, 'atualizar', 'cliente', id, `Portal desativado para ${cliente.nome}`);
+    return cliente;
+  }
+
   @Get(':id/documentos')
   @ApiOperation({ summary: 'Arquivos de todos os processos vinculados a esse cliente, agregados' })
   async documentosDosProcessos(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string) {

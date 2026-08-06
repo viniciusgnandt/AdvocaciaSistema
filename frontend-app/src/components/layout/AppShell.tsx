@@ -12,7 +12,7 @@ const ROTAS_PUBLICAS = ['/login', '/registro'];
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const rotaPublica = ROTAS_PUBLICAS.includes(pathname);
+  const rotaPublica = ROTAS_PUBLICAS.includes(pathname) || pathname.startsWith('/portal/');
   const [pronto, setPronto] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
 

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { randomBytes } from 'crypto';
 import { Cliente } from './schemas/cliente.schema';
 import { Processo } from '../processos/schemas/processo.schema';
 import { Documento } from '../documentos/schemas/documento.schema';
@@ -44,6 +45,23 @@ export class ClientesService {
 
   async buscar(tenantId: Types.ObjectId, clienteId: Types.ObjectId): Promise<Cliente | null> {
     return this.clienteModel.findOne({ _id: clienteId, tenant_id: tenantId });
+  }
+
+  async ativarPortal(tenantId: Types.ObjectId, clienteId: Types.ObjectId) {
+    const token = randomBytes(24).toString('base64url');
+    return this.clienteModel.findOneAndUpdate(
+      { _id: clienteId, tenant_id: tenantId },
+      { $set: { portal_token: token, portal_ativo: true } },
+      { new: true },
+    );
+  }
+
+  async desativarPortal(tenantId: Types.ObjectId, clienteId: Types.ObjectId) {
+    return this.clienteModel.findOneAndUpdate(
+      { _id: clienteId, tenant_id: tenantId },
+      { $set: { portal_ativo: false }, $unset: { portal_token: '' } },
+      { new: true },
+    );
   }
 
   async processosVinculados(tenantId: Types.ObjectId, clienteId: Types.ObjectId) {

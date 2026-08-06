@@ -4,9 +4,12 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   AlertTriangle,
+  Check,
+  Copy,
   Download,
   FileText,
   Gavel,
+  Globe,
   Landmark,
   Link2,
   Mail,
@@ -21,9 +24,11 @@ import {
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/Topbar';
 import {
+  ativarPortalCliente,
   atualizarCliente,
   baixarDocumento,
   criarCliente,
+  desativarPortalCliente,
   desvincularProcessoDoCliente,
   documentosDosProcessosDoCliente,
   excluirCliente,
@@ -295,6 +300,14 @@ function ClientesPageConteudo() {
                   </div>
                 )}
 
+                <PortalCliente
+                  cliente={selecionado}
+                  onAtualizado={(c) => {
+                    setSelecionado(c);
+                    setClientes((atual) => atual.map((x) => (x._id === c._id ? c : x)));
+                  }}
+                />
+
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 flex items-center gap-1">
@@ -386,6 +399,89 @@ function ClientesPageConteudo() {
         />
       )}
     </>
+  );
+}
+
+function PortalCliente({ cliente, onAtualizado }: { cliente: Cliente; onAtualizado: (c: Cliente) => void }) {
+  const [carregando, setCarregando] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const link = cliente.portal_token && typeof window !== 'undefined' ? `${window.location.origin}/portal/${cliente.portal_token}` : '';
+
+  const ativar = async () => {
+    setCarregando(true);
+    setErro(null);
+    try {
+      onAtualizado(await ativarPortalCliente(cliente._id));
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'erro ao ativar portal');
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  const desativar = async () => {
+    if (!window.confirm('Desativar o portal? O link atual deixará de funcionar.')) return;
+    setCarregando(true);
+    setErro(null);
+    try {
+      onAtualizado(await desativarPortalCliente(cliente._id));
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'erro ao desativar portal');
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  const copiar = () => {
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    });
+  };
+
+  return (
+    <div className="rounded-lg border border-gray-100 dark:border-gray-800 p-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 flex items-center gap-1">
+          <Globe size={12} /> Portal do cliente
+        </p>
+        {cliente.portal_ativo ? (
+          <button onClick={desativar} disabled={carregando} className="text-xs text-red-600 dark:text-red-400 hover:underline disabled:opacity-50">
+            Desativar
+          </button>
+        ) : (
+          <button onClick={ativar} disabled={carregando} className="text-xs text-brand-600 dark:text-brand-400 hover:underline disabled:opacity-50">
+            {carregando ? 'Ativando…' : 'Ativar'}
+          </button>
+        )}
+      </div>
+
+      {erro && <p className="text-xs text-red-600 dark:text-red-400 mt-1.5">{erro}</p>}
+
+      {cliente.portal_ativo && link ? (
+        <div className="flex items-center gap-2 mt-2">
+          <input
+            readOnly
+            value={link}
+            onClick={(e) => (e.target as HTMLInputElement).select()}
+            className="flex-1 min-w-0 text-xs font-mono rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 px-2.5 py-1.5 text-gray-600 dark:text-gray-300"
+          />
+          <button
+            onClick={copiar}
+            className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+            title="Copiar link"
+          >
+            {copiado ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+          </button>
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400 mt-1">
+          Ative para gerar um link somente leitura — sem senha — para o cliente acompanhar processos, documentos e financeiro.
+        </p>
+      )}
+    </div>
   );
 }
 

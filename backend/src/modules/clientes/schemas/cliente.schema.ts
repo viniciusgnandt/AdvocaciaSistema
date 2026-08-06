@@ -61,10 +61,19 @@ export class Cliente extends Document {
 
   @Prop({ type: EnderecoSchema })
   endereco?: Endereco;
+
+  // portal do cliente: acesso somente leitura via link com token, sem senha - o
+  // escritorio ativa e compartilha o link manualmente (nao ha envio de e-mail)
+  @Prop()
+  portal_token?: string;
+
+  @Prop({ default: false })
+  portal_ativo: boolean;
 }
 
 export const ClienteSchema = SchemaFactory.createForClass(Cliente);
 ClienteSchema.index({ tenant_id: 1, nome: 1 });
+ClienteSchema.index({ portal_token: 1 }, { unique: true, sparse: true });
 // partialFilterExpression, nao sparse: um indice sparse composto so ignora o documento
 // se TODOS os campos do indice estiverem ausentes - como tenant_id esta sempre presente,
 // "sparse" sozinho nunca excluia ninguem e cpf:null colidia entre clientes sem CPF.

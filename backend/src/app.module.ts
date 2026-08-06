@@ -13,6 +13,7 @@ import { TerceirizacoesModule } from './modules/terceirizacoes/terceirizacoes.mo
 import { ExportacaoModule } from './modules/exportacao/exportacao.module';
 import { PrazosModule } from './modules/prazos/prazos.module';
 import { AuditoriaModule } from './modules/auditoria/auditoria.module';
+import { PortalModule } from './modules/portal/portal.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { AuditoriaModule } from './modules/auditoria/auditoria.module';
     ExportacaoModule,
     PrazosModule,
     AuditoriaModule,
+    PortalModule,
   ],
 })
 export class AppModule {}
