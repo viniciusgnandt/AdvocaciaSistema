@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Patch, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Types } from 'mongoose';
@@ -78,6 +78,12 @@ export class AuthController {
   @ApiOperation({ summary: 'Atualiza nome/OAB do proprio usuario autenticado' })
   async atualizarPerfil(@CurrentUser() usuario: UsuarioAutenticado, @Body() dto: AtualizarPerfilDto) {
     return this.authService.atualizarPerfil(new Types.ObjectId(usuario.sub), dto);
+  }
+
+  @Post('perfil/favoritos/:chave')
+  @ApiOperation({ summary: 'Alterna (adiciona/remove) um favorito do proprio usuario, ex.: chave="processo:0001..." ou "cliente:<id>"' })
+  async alternarFavorito(@CurrentUser() usuario: UsuarioAutenticado, @Param('chave') chave: string) {
+    return this.authService.alternarFavorito(new Types.ObjectId(usuario.sub), decodeURIComponent(chave));
   }
 
   @Post('perfil/foto')

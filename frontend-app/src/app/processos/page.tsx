@@ -18,6 +18,7 @@ import {
   Scale,
   ScrollText,
   Search,
+  Star,
   Tag,
   UserRound,
   Wallet,
@@ -45,6 +46,8 @@ import { FinanceiroProcesso } from '@/components/processos/FinanceiroProcesso';
 import { TarefasProcesso } from '@/components/processos/TarefasProcesso';
 import { TimelineProcesso } from '@/components/processos/TimelineProcesso';
 import HistoricoAmigavel from '@/components/common/HistoricoAmigavel';
+import { BotaoFavorito } from '@/components/common/BotaoFavorito';
+import { useFavoritos } from '@/lib/useFavoritos';
 import { BotaoExportar } from '@/components/ui/BotaoExportar';
 import { exportarExcel, exportarPdf } from '@/lib/exportar';
 
@@ -92,6 +95,8 @@ function ProcessosPageConteudo() {
   const [selecionado, setSelecionado] = useState<Processo | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [somenteFavoritos, setSomenteFavoritos] = useState(false);
+  const { ehFavorito, alternar } = useFavoritos();
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -119,6 +124,10 @@ function ProcessosPageConteudo() {
   }, [filtros, numeroBuscado]);
 
   const processoNaoEncontrado = !loading && numeroBuscado && !processos.some((p) => p.numero_cnj === numeroBuscado);
+
+  const processosExibidos = [...processos]
+    .filter((p) => !somenteFavoritos || ehFavorito('processo', p._id))
+    .sort((a, b) => Number(ehFavorito('processo', b._id)) - Number(ehFavorito('processo', a._id)));
 
   const exportarComoExcel = () => {
     exportarExcel(
@@ -160,6 +169,20 @@ function ProcessosPageConteudo() {
           <div className="flex-1 min-w-0">
             <FiltroProcessos filtros={filtros} onChange={setFiltros} tribunais={tribunais} classes={classes} />
           </div>
+          {processos.length > 0 && (
+            <button
+              onClick={() => setSomenteFavoritos((v) => !v)}
+              className={cn(
+                'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border shrink-0',
+                somenteFavoritos
+                  ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
+                  : 'border-gray-200 text-gray-500 dark:border-gray-800 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700',
+              )}
+            >
+              <Star size={12} fill={somenteFavoritos ? 'currentColor' : 'none'} />
+              Favoritos
+            </button>
+          )}
           {processos.length > 0 && <BotaoExportar onExcel={exportarComoExcel} onPdf={exportarComoPdf} />}
         </div>
 
@@ -171,10 +194,14 @@ function ProcessosPageConteudo() {
               ? 'Nenhum processo encontrado com os filtros atuais.'
               : 'Nenhum processo enriquecido ainda. Isso acontece automaticamente conforme novas publicações chegam.'}
           </div>
+        ) : processosExibidos.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-800 py-16 text-center text-gray-400 text-sm">
+            Nenhum processo favoritado ainda. Clique na estrela de um processo para fixá-lo aqui.
+          </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5">
             <ul className="space-y-2 max-h-[calc(100vh-140px)] overflow-y-auto pr-1">
-              {processos.map((p) => (
+              {processosExibidos.map((p) => (
                 <li
                   key={p._id}
                   onClick={() => setSelecionado(p)}
@@ -190,10 +217,11 @@ function ProcessosPageConteudo() {
                       const saude = saudeProcesso(p);
                       return saude ? <span className={cn('shrink-0 w-2 h-2 rounded-full', saude.cor)} title={saude.titulo} /> : null;
                     })()}
-                    <span className="truncate">{tituloPartes(p) ?? formatarNumeroCnj(p.numero_cnj)}</span>
+                    <span className="truncate flex-1">{tituloPartes(p) ?? formatarNumeroCnj(p.numero_cnj)}</span>
                     {p.provisorio && (
                       <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400" title="Provisório — aguardando DataJud" />
                     )}
+                    <BotaoFavorito favorito={ehFavorito('processo', p._id)} onClick={() => alternar('processo', p._id)} />
                   </p>
                   {tituloPartes(p) && (
                     <p className="font-mono text-xs text-gray-400 dark:text-gray-500 mt-0.5">

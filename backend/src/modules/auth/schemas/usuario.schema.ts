@@ -46,6 +46,11 @@ export class Usuario extends Document {
 
   @Prop({ type: [String], default: [] })
   especialidades: string[];
+
+  // chaves compostas tipo "cliente:<id>" / "processo:<numeroCnj>" - favoritos sao
+  // pessoais de cada usuario, nao do escritorio
+  @Prop({ type: [String], default: [] })
+  favoritos: string[];
 }
 
 export const UsuarioSchema = SchemaFactory.createForClass(Usuario);

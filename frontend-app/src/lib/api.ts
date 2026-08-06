@@ -95,6 +95,7 @@ export type Usuario = {
   time_id?: string;
   foto_url?: string;
   especialidades?: string[];
+  favoritos?: string[];
 };
 
 export function listarUsuarios() {
@@ -240,6 +241,16 @@ export function buscarPerfil() {
 
 export function atualizarPerfil(dto: { nome?: string; oab?: string; especialidades?: string[] }) {
   return request<Usuario>('/auth/perfil', { method: 'PATCH', body: JSON.stringify(dto) });
+}
+
+export function chaveFavorito(tipo: 'processo' | 'cliente', id: string): string {
+  return `${tipo}:${id}`;
+}
+
+export function alternarFavorito(tipo: 'processo' | 'cliente', id: string) {
+  return request<{ favoritos: string[] }>(`/auth/perfil/favoritos/${encodeURIComponent(chaveFavorito(tipo, id))}`, {
+    method: 'POST',
+  });
 }
 
 async function enviarArquivo<T>(path: string, arquivo: File): Promise<T> {

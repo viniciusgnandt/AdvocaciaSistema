@@ -146,6 +146,19 @@ export class AuthService {
     return this.comFotoUrl(usuario);
   }
 
+  async alternarFavorito(usuarioId: Types.ObjectId, chave: string) {
+    const usuario = await this.usuarioModel.findById(usuarioId);
+    if (!usuario) throw new NotFoundException('usuario nao encontrado');
+    const jaFavoritado = usuario.favoritos.includes(chave);
+    if (jaFavoritado) {
+      usuario.favoritos = usuario.favoritos.filter((f) => f !== chave);
+    } else {
+      usuario.favoritos.push(chave);
+    }
+    await usuario.save();
+    return { favoritos: usuario.favoritos };
+  }
+
   async atualizarFotoUsuario(usuarioId: Types.ObjectId, chave: string) {
     const usuario = await this.usuarioModel.findById(usuarioId);
     if (!usuario) throw new NotFoundException('usuario nao encontrado');
