@@ -2,6 +2,7 @@
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { BuscaGlobal } from './BuscaGlobal';
+import { NotificacoesBell } from './NotificacoesBell';
 
 export function Topbar({ titulo, subtitulo }: { titulo: string; subtitulo?: string }) {
   return (
@@ -13,6 +14,7 @@ export function Topbar({ titulo, subtitulo }: { titulo: string; subtitulo?: stri
 
       <div className="ml-auto flex items-center gap-2">
         <BuscaGlobal />
+        <NotificacoesBell />
         <ThemeToggle />
       </div>
     </header>
