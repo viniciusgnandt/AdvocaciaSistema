@@ -216,6 +216,10 @@ export function listarAuditoria(filtros: { entidade?: string; usuarioEmail?: str
   return request<LogAuditoria[]>(`/auditoria${query ? `?${query}` : ''}`);
 }
 
+export function listarHistoricoDaEntidade(entidade: 'cliente' | 'processo', entidadeId: string) {
+  return request<LogAuditoria[]>(`/auditoria/${entidade}/${encodeURIComponent(entidadeId)}`);
+}
+
 export function exportarMeusDados() {
   return request<{
     geradoEm: string;

@@ -44,6 +44,7 @@ import {
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
+import HistoricoAmigavel from '@/components/common/HistoricoAmigavel';
 
 const LABEL_ESTADO_CIVIL: Record<string, string> = {
   solteiro: 'Solteiro(a)',
@@ -384,6 +385,10 @@ function ClientesPageConteudo() {
                     Documentos enviados diretamente pelo cliente, antes ou independente de um processo.
                   </p>
                   <ArquivosProcesso escopo={{ clienteId: selecionado._id }} />
+                </div>
+
+                <div className="rounded-lg border border-gray-100 dark:border-gray-800 p-3">
+                  <HistoricoAmigavel entidade="cliente" entidadeId={selecionado._id} />
                 </div>
               </div>
             )}

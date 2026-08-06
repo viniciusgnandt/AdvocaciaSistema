@@ -40,4 +40,15 @@ export class AuditoriaService {
       .limit(filtros.limite ?? 200)
       .exec();
   }
+
+  /** Historico de uma entidade especifica (processo/cliente) - visivel pra qualquer
+   * usuario do tenant, nao so admin, porque e' sobre o proprio registro que ele ja
+   * esta vendo na tela, nao uma varredura geral do escritorio. */
+  async listarDaEntidade(tenantId: Types.ObjectId, entidade: string, entidadeId: string) {
+    return this.logModel
+      .find({ tenant_id: tenantId, entidade, entidade_id: entidadeId })
+      .sort({ created_at: -1 })
+      .limit(50)
+      .exec();
+  }
 }

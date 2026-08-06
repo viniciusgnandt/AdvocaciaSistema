@@ -16,6 +16,7 @@ import {
   Paperclip,
   Pencil,
   Scale,
+  ScrollText,
   Search,
   Tag,
   UserRound,
@@ -43,6 +44,7 @@ import { AnexoMovimentacao } from '@/components/processos/AnexoMovimentacao';
 import { FinanceiroProcesso } from '@/components/processos/FinanceiroProcesso';
 import { TarefasProcesso } from '@/components/processos/TarefasProcesso';
 import { TimelineProcesso } from '@/components/processos/TimelineProcesso';
+import HistoricoAmigavel from '@/components/common/HistoricoAmigavel';
 import { BotaoExportar } from '@/components/ui/BotaoExportar';
 import { exportarExcel, exportarPdf } from '@/lib/exportar';
 
@@ -270,7 +272,7 @@ function saudeProcesso(p: Processo): { cor: string; titulo: string } | null {
   return { cor: 'bg-green-500', titulo: 'Em dia' };
 }
 
-type AbaProcesso = 'timeline' | 'movimentacoes' | 'arquivos' | 'tarefas' | 'financeiro';
+type AbaProcesso = 'timeline' | 'movimentacoes' | 'arquivos' | 'tarefas' | 'financeiro' | 'historico';
 
 const ABAS_PROCESSO: { id: AbaProcesso; label: string; icon: typeof Gavel }[] = [
   { id: 'timeline', label: 'Timeline', icon: HistoryIcon },
@@ -278,6 +280,7 @@ const ABAS_PROCESSO: { id: AbaProcesso; label: string; icon: typeof Gavel }[] = 
   { id: 'arquivos', label: 'Arquivos', icon: Paperclip },
   { id: 'tarefas', label: 'Tarefas', icon: CheckSquare },
   { id: 'financeiro', label: 'Financeiro', icon: Wallet },
+  { id: 'historico', label: 'Histórico', icon: ScrollText },
 ];
 
 const LABEL_HONORARIO: Record<string, string> = {
@@ -451,6 +454,8 @@ function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtu
           {aba === 'tarefas' && <TarefasProcesso numeroProcesso={processo.numero_cnj} />}
 
           {aba === 'financeiro' && <FinanceiroProcesso numeroProcesso={processo.numero_cnj} />}
+
+          {aba === 'historico' && <HistoricoAmigavel entidade="processo" entidadeId={processo.numero_cnj} />}
         </div>
       </div>
     </div>
