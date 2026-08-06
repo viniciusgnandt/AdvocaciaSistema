@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 export type EntidadeNota = 'processo' | 'cliente';
+export type CanalContato = 'ligacao' | 'email' | 'whatsapp' | 'reuniao' | 'presencial';
 
 @Schema({ timestamps: { createdAt: 'created_at', updatedAt: false } })
 export class Nota extends Document {
@@ -24,6 +25,12 @@ export class Nota extends Document {
 
   @Prop({ required: true })
   usuario_nome: string;
+
+  // presente = esta nota registra um contato feito com o cliente (ligacao/e-mail/
+  // whatsapp/reuniao), nao so uma anotacao livre - usado pra montar o historico de
+  // contatos na ficha do cliente
+  @Prop({ enum: ['ligacao', 'email', 'whatsapp', 'reuniao', 'presencial'] })
+  canal?: CanalContato;
 }
 
 export const NotaSchema = SchemaFactory.createForClass(Nota);

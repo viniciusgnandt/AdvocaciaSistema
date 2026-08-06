@@ -37,6 +37,7 @@ export class NotasController {
       entidade: dto.entidade,
       entidade_id: dto.entidade_id,
       texto: dto.texto,
+      canal: dto.canal,
       usuario_id: new Types.ObjectId(usuario.sub),
       usuario_nome: quemCriou?.nome ?? usuario.email,
     });
