@@ -47,4 +47,9 @@ export class AtualizarTarefaDto {
   @IsOptional()
   @IsIn(['diaria', 'semanal', 'mensal', 'anual', ''])
   recorrencia?: 'diaria' | 'semanal' | 'mensal' | 'anual' | '';
+
+  @ApiProperty({ required: false, description: 'Registro curto do que foi feito, capturado ao concluir a tarefa' })
+  @IsOptional()
+  @IsString()
+  nota_conclusao?: string;
 }

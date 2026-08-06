@@ -107,9 +107,15 @@ export default function TarefasPage() {
   }, [tarefas, somenteMinhas, responsavelFiltro, usuario]);
 
   const moverStatus = async (id: string, status: StatusTarefa) => {
+    let nota_conclusao: string | undefined;
+    if (status === 'concluida') {
+      const resposta = window.prompt('O que foi feito? (opcional, deixe em branco para pular)');
+      if (resposta === null) return;
+      nota_conclusao = resposta.trim() || undefined;
+    }
     setTarefas((atual) => atual.map((t) => (t._id === id ? { ...t, status } : t)));
     try {
-      await atualizarTarefa(id, { status });
+      await atualizarTarefa(id, { status, ...(nota_conclusao ? { nota_conclusao } : {}) });
     } catch {
       carregar();
     }
@@ -371,6 +377,9 @@ export default function TarefasPage() {
                     )}
                     {nomeResponsavel(t.responsavel_id) && <span>· {nomeResponsavel(t.responsavel_id)}</span>}
                   </div>
+                  {t.status === 'concluida' && t.nota_conclusao && (
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 italic truncate">"{t.nota_conclusao}"</p>
+                  )}
                 </div>
 
                 <span className={cn('text-xs px-2 py-0.5 rounded-full border shrink-0', PRIORIDADE_COR[t.prioridade])}>

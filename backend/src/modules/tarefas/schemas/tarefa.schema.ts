@@ -46,6 +46,11 @@ export class Tarefa extends Document {
   @Prop()
   concluida_em?: Date;
 
+  // registro curto e opcional do que foi feito, capturado no momento da conclusao -
+  // nao e um historico completo, so um "o que rolou" rapido pra quem olhar depois
+  @Prop()
+  nota_conclusao?: string;
+
   // presente = tarefa recorrente; ao concluir, o controller cria a proxima ocorrencia
   // com data_vencimento avancada por essa frequencia
   @Prop()

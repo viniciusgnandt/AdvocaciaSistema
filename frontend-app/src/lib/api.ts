@@ -678,6 +678,7 @@ export type Tarefa = {
   status: StatusTarefa;
   origem: 'manual' | 'prazo_publicacao' | 'audiencia_publicacao';
   concluida_em?: string;
+  nota_conclusao?: string;
   recorrencia?: FrequenciaRecorrencia;
 };
 
@@ -799,6 +800,7 @@ export function atualizarTarefa(
     responsaveis_adicionais?: string[];
     numero_processo?: string;
     recorrencia?: FrequenciaRecorrencia | '';
+    nota_conclusao?: string;
   },
 ) {
   return request<Tarefa>(`/tarefas/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
