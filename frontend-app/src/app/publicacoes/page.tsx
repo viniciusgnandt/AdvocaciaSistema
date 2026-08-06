@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, Archive, CalendarDays, Check, Eye, Inbox, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, Archive, CalendarDays, Check, Eye, Inbox, ListChecks, RefreshCw, X } from 'lucide-react';
 import { Topbar } from '@/components/layout/Topbar';
 import { StatCard } from '@/components/ui/StatCard';
 import { FiltroBar } from '@/components/publicacoes/FiltroBar';
 import { PublicacaoItem } from '@/components/publicacoes/PublicacaoItem';
 import { PublicacaoModal } from '@/components/publicacoes/PublicacaoModal';
+import { ModoTriagem } from '@/components/publicacoes/ModoTriagem';
 import {
   atualizarPublicacao,
   atualizarPublicacoesEmMassa,
@@ -34,6 +35,7 @@ export default function PublicacoesPage() {
   const [selecionada, setSelecionada] = useState<Publicacao | null>(null);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [aplicandoEmMassa, setAplicandoEmMassa] = useState(false);
+  const [triagemAberta, setTriagemAberta] = useState(false);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -128,14 +130,23 @@ export default function PublicacoesPage() {
 
         <div className="flex items-center justify-between gap-3">
           <FiltroBar filtros={filtros} onChange={setFiltros} tribunais={tribunais} tipos={tipos} />
-          <button
-            onClick={puxarNovas}
-            disabled={pulling}
-            className="shrink-0 flex items-center gap-2 rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2.5 text-sm font-medium text-white transition disabled:opacity-50"
-          >
-            <RefreshCw size={14} className={pulling ? 'animate-spin' : ''} />
-            {pulling ? 'Buscando…' : 'Puxar novas'}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setTriagemAberta(true)}
+              disabled={itens.filter((p) => p.status === 'nao_lida').length === 0}
+              className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-800 px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50"
+            >
+              <ListChecks size={14} /> Triagem rápida
+            </button>
+            <button
+              onClick={puxarNovas}
+              disabled={pulling}
+              className="flex items-center gap-2 rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2.5 text-sm font-medium text-white transition disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={pulling ? 'animate-spin' : ''} />
+              {pulling ? 'Buscando…' : 'Puxar novas'}
+            </button>
+          </div>
         </div>
 
         {erro && (
@@ -246,6 +257,17 @@ export default function PublicacoesPage() {
           publicacao={selecionada}
           onFechar={() => setSelecionada(null)}
           onIrParaProcesso={(numeroProcesso) => router.push(`/processos?numero=${numeroProcesso}`)}
+        />
+      )}
+
+      {triagemAberta && (
+        <ModoTriagem
+          itens={itens.filter((p) => p.status === 'nao_lida')}
+          onAtualizar={atualizar}
+          onFechar={() => {
+            setTriagemAberta(false);
+            buscarResumo().then(setResumo);
+          }}
         />
       )}
     </>
