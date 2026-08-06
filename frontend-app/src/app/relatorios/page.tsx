@@ -109,6 +109,34 @@ export default function RelatoriosPage() {
 
   const carregando = !processos || !tarefas || !lancamentos || !usuarios || !clientes;
 
+  const saudeEscritorio = useMemo(() => {
+    if (!processos || !tarefas || !lancamentos) return null;
+
+    const totalTarefas = tarefas.length;
+    const taxaConclusao = totalTarefas > 0 ? (tarefas.filter((t) => t.status === 'concluida').length / totalTarefas) * 100 : 100;
+
+    const naoCancelados = lancamentos.filter((l) => l.status !== 'cancelado');
+    const taxaInadimplencia = naoCancelados.length > 0 ? (naoCancelados.filter((l) => l.status === 'atrasado').length / naoCancelados.length) * 100 : 0;
+
+    const mesAtual = mesAtualISO();
+    const saldoMes =
+      naoCancelados.filter((l) => l.tipo === 'receita' && l.status === 'pago' && l.data_vencimento.slice(0, 7) === mesAtual).reduce((a, l) => a + l.valor, 0) -
+      naoCancelados.filter((l) => l.tipo === 'despesa' && l.status === 'pago' && l.data_vencimento.slice(0, 7) === mesAtual).reduce((a, l) => a + l.valor, 0);
+
+    const seisDezenas = new Date();
+    seisDezenas.setDate(seisDezenas.getDate() - 60);
+    const ativos = processos.filter((p) => p.status === 'ativo');
+    const taxaParados = ativos.length > 0 ? (ativos.filter((p) => p.datajud_atualizado_em && new Date(p.datajud_atualizado_em) < seisDezenas).length / ativos.length) * 100 : 0;
+
+    const pontos =
+      Math.min(taxaConclusao, 100) * 0.3 +
+      Math.max(0, 100 - taxaInadimplencia * 2) * 0.3 +
+      (saldoMes >= 0 ? 100 : Math.max(0, 100 + saldoMes / 100)) * 0.2 +
+      Math.max(0, 100 - taxaParados) * 0.2;
+
+    return Math.round(Math.max(0, Math.min(100, pontos)));
+  }, [processos, tarefas, lancamentos]);
+
   return (
     <>
       <Topbar titulo="Relatórios" subtitulo="Visão consolidada de processos, tarefas, financeiro e clientes" />
@@ -119,6 +147,8 @@ export default function RelatoriosPage() {
             {erro}
           </div>
         )}
+
+        {saudeEscritorio !== null && <HealthMeter score={saudeEscritorio} />}
 
         <CategoriaDropdown categoria={categoria} onChange={setCategoria} />
 
@@ -134,6 +164,62 @@ export default function RelatoriosPage() {
         )}
       </main>
     </>
+  );
+}
+
+function HealthMeter({ score }: { score: number }) {
+  const cor = score >= 75 ? 'text-green-500' : score >= 50 ? 'text-amber-500' : 'text-red-500';
+  const corFundo = score >= 75 ? 'bg-green-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-500';
+  const label = score >= 75 ? 'Saudável' : score >= 50 ? 'Atenção' : 'Crítico';
+  const mensagem =
+    score >= 75
+      ? 'O escritório está com indicadores saudáveis. Continue acompanhando.'
+      : score >= 50
+        ? 'Alguns indicadores merecem atenção — confira os alertas por categoria.'
+        : 'Vários indicadores abaixo do esperado. Vale revisar tarefas atrasadas, inadimplência e processos parados.';
+
+  return (
+    <div className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800">
+      <div className="relative w-20 h-20 shrink-0">
+        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeWidth="3" className="text-gray-100 dark:text-gray-800" />
+          <circle
+            cx="18"
+            cy="18"
+            r="15.9"
+            fill="none"
+            strokeWidth="3"
+            strokeDasharray={`${score} ${100 - score}`}
+            strokeLinecap="round"
+            className={cor}
+            stroke="currentColor"
+            style={{ transition: 'stroke-dasharray 0.7s ease' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className={cn('text-xl font-extrabold', cor)}>{score}</span>
+          <span className="text-[9px] font-semibold text-gray-400 uppercase">/100</span>
+        </div>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className={cn('text-sm font-bold', cor)}>Saúde do escritório</span>
+          <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full text-white', corFundo)}>{label}</span>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{mensagem}</p>
+        <details className="mt-1.5">
+          <summary className="text-[10px] text-gray-400 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300 select-none">
+            Como é calculada esta pontuação?
+          </summary>
+          <div className="mt-1 space-y-0.5 text-[10px] text-gray-400 dark:text-gray-500">
+            <p>• Taxa de conclusão de tarefas — 30 pts</p>
+            <p>• Taxa de inadimplência (invertida) — 30 pts</p>
+            <p>• Saldo financeiro do mês — 20 pts</p>
+            <p>• Processos ativos sem atualização há 60+ dias (invertido) — 20 pts</p>
+          </div>
+        </details>
+      </div>
+    </div>
   );
 }
 
