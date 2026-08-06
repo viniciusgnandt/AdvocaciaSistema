@@ -6,7 +6,9 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Legend,
+  Line,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -354,6 +356,32 @@ function RelatorioFinanceiro({ lancamentos, processos, usuarios }: { lancamentos
     return Array.from(totalPorSocio.entries()).map(([nome, total]) => ({ nome, total }));
   }, [lancamentos, processos, usuarios]);
 
+  const fluxoProjetado = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const semanas: { label: string; inicio: Date; fim: Date }[] = [];
+    for (let i = 0; i < 13; i++) {
+      const inicio = new Date(hoje);
+      inicio.setDate(inicio.getDate() + i * 7);
+      const fim = new Date(inicio);
+      fim.setDate(fim.getDate() + 6);
+      semanas.push({ label: `${inicio.getDate()}/${inicio.getMonth() + 1}`, inicio, fim });
+    }
+
+    const pendentes = lancamentos.filter((l) => l.status === 'pendente' || l.status === 'atrasado');
+    let acumulado = 0;
+    return semanas.map(({ label, inicio, fim }) => {
+      const daSemana = pendentes.filter((l) => {
+        const venc = new Date(l.data_vencimento);
+        return venc >= inicio && venc <= fim;
+      });
+      const receitas = daSemana.filter((l) => l.tipo === 'receita').reduce((acc, l) => acc + l.valor, 0);
+      const despesas = daSemana.filter((l) => l.tipo === 'despesa').reduce((acc, l) => acc + l.valor, 0);
+      acumulado += receitas - despesas;
+      return { semana: label, Líquido: receitas - despesas, 'Saldo acumulado': acumulado };
+    });
+  }, [lancamentos]);
+
   return (
     <div className="space-y-5">
       <KpiGrid>
@@ -397,6 +425,20 @@ function RelatorioFinanceiro({ lancamentos, processos, usuarios }: { lancamentos
             </ResponsiveContainer>
           </Cartao>
         )}
+
+        <Cartao titulo="Fluxo de caixa projetado (90 dias)" subtitulo="Lançamentos pendentes/atrasados já cadastrados, por semana">
+          <ResponsiveContainer width="100%" height={280}>
+            <ComposedChart data={fluxoProjetado}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-100 dark:stroke-gray-800" />
+              <XAxis dataKey="semana" tick={{ fontSize: 10 }} interval={1} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+              <Tooltip formatter={(v) => formatarMoeda(Number(v))} />
+              <Legend />
+              <Bar dataKey="Líquido" fill="#2563eb" radius={[4, 4, 0, 0]} />
+              <Line type="monotone" dataKey="Saldo acumulado" stroke="#16a34a" strokeWidth={2} dot={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </Cartao>
       </div>
     </div>
   );
