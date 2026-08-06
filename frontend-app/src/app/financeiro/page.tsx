@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Briefcase, Check, ChevronLeft, ChevronRight, Plus, ShieldCheck, Trash2, TrendingDown, TrendingUp, Wallet, X } from 'lucide-react';
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Briefcase, Calculator, Check, ChevronLeft, ChevronRight, Plus, ShieldCheck, Trash2, TrendingDown, TrendingUp, Wallet, X } from 'lucide-react';
 import { Topbar } from '@/components/layout/Topbar';
 import { StatCard } from '@/components/ui/StatCard';
 import { BotaoExportar } from '@/components/ui/BotaoExportar';
 import { TerceirizacaoAba } from '@/components/financeiro/TerceirizacaoAba';
+import { SimuladorHonorarios } from '@/components/financeiro/SimuladorHonorarios';
 import { exportarExcel, exportarPdf } from '@/lib/exportar';
 import {
   aprovarDespesa,
@@ -61,6 +62,7 @@ export default function FinanceiroPage() {
   const [aba, setAba] = useState<'lancamentos' | 'terceirizacao'>('lancamentos');
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
+  const [simuladorAberto, setSimuladorAberto] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
@@ -257,8 +259,14 @@ export default function FinanceiroPage() {
             ))}
           </select>
           <button
+            onClick={() => setSimuladorAberto(true)}
+            className="ml-auto flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-800 px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+          >
+            <Calculator size={14} /> Simular honorários
+          </button>
+          <button
             onClick={() => setModalAberto(true)}
-            className="ml-auto flex items-center gap-2 rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2.5 text-sm font-medium text-white transition"
+            className="flex items-center gap-2 rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2.5 text-sm font-medium text-white transition"
           >
             <Plus size={14} /> Novo lançamento
           </button>
@@ -395,6 +403,8 @@ export default function FinanceiroPage() {
           }}
         />
       )}
+
+      {simuladorAberto && <SimuladorHonorarios onFechar={() => setSimuladorAberto(false)} />}
     </>
   );
 }
