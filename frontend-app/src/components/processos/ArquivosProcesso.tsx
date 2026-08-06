@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronRight, Download, File, FolderOpen, FolderPlus, Home, Paperclip, Plus, Trash2, X } from 'lucide-react';
+import { ChevronRight, Download, File, FolderOpen, FolderPlus, Home, Mail, Paperclip, Plus, Trash2, X } from 'lucide-react';
 import {
   baixarDocumento,
   criarPasta,
@@ -184,7 +184,11 @@ export function ArquivosProcesso({ escopo }: { escopo: EscopoArquivos }) {
               key={d._id}
               className="flex items-center gap-2.5 rounded-lg border border-gray-100 dark:border-gray-800 px-3 py-2 text-sm"
             >
-              <File size={14} className="text-gray-400 shrink-0" />
+              {d.tipo === 'email' ? (
+                <Mail size={14} className="text-brand-400 shrink-0" />
+              ) : (
+                <File size={14} className="text-gray-400 shrink-0" />
+              )}
               <span className="flex-1 min-w-0 truncate text-gray-700 dark:text-gray-300">{d.nome}</span>
               <span className="text-xs text-gray-400 shrink-0">{formatarTamanho(d.tamanho_bytes)}</span>
               <button

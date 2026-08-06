@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-export type TipoDocumento = 'peca' | 'contrato' | 'procuracao' | 'comprovante' | 'imagem' | 'outro';
+export type TipoDocumento = 'peca' | 'contrato' | 'procuracao' | 'comprovante' | 'imagem' | 'email' | 'outro';
 
 @Schema({ timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } })
 export class Documento extends Document {

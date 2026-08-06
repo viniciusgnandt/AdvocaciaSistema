@@ -59,7 +59,7 @@ export class DocumentosController {
       movimentacao_chave: movimentacaoChave,
       pasta_id: pastaId ? new Types.ObjectId(pastaId) : undefined,
       nome: arquivo.originalname,
-      tipo: tipo ?? inferirTipo(arquivo.mimetype),
+      tipo: tipo ?? inferirTipo(arquivo.mimetype, arquivo.originalname),
       storage_key: chave,
       mime: arquivo.mimetype,
       tamanho_bytes: arquivo.size,
@@ -116,7 +116,9 @@ export class DocumentosController {
   }
 }
 
-function inferirTipo(mime: string): string {
+function inferirTipo(mime: string, nomeArquivo: string): string {
+  const extensao = nomeArquivo.toLowerCase().split('.').pop();
+  if (extensao === 'eml' || extensao === 'msg' || mime === 'message/rfc822') return 'email';
   if (mime === 'application/pdf') return 'peca';
   if (mime.startsWith('image/')) return 'imagem';
   return 'outro';
