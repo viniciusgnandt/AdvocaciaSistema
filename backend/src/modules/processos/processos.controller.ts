@@ -3,6 +3,7 @@ import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Processo } from './schemas/processo.schema';
+import { Tarefa } from '../tarefas/schemas/tarefa.schema';
 import { DatajudConnectorService } from './connectors/datajud-connector.service';
 import { ProcessosService } from './processos.service';
 import { AtualizarProcessoDto } from './dto/atualizar-processo.dto';
@@ -16,6 +17,7 @@ import { FinanceiroService } from '../financeiro/financeiro.service';
 export class ProcessosController {
   constructor(
     @InjectModel(Processo.name) private readonly processoModel: Model<Processo>,
+    @InjectModel(Tarefa.name) private readonly tarefaModel: Model<Tarefa>,
     private readonly datajud: DatajudConnectorService,
     private readonly processosService: ProcessosService,
     private readonly auditoriaService: AuditoriaService,
@@ -112,11 +114,36 @@ export class ProcessosController {
     // lancamento financeiro automaticamente - evita o advogado esquecer de lancar o
     // recebivel na hora do encerramento, que e' justamente quando a atencao esta no
     // desfecho do caso, nao no financeiro. Idempotente: nao duplica se ja existir.
-    if (dto.status === 'encerrado' && anterior.status !== 'encerrado' && processo.honorarios?.tipo) {
-      await this.gerarLancamentoDeExito(tenant, processo);
+    // automacoes disparadas pela mudanca de status - "gatilho > acao" simples, direto no
+    // fluxo de atualizacao (nao ha motor de regras generico ainda, sao casos fixos que
+    // resolvem os pontos onde o advogado mais esquece de agir manualmente)
+    if (dto.status === 'encerrado' && anterior.status !== 'encerrado') {
+      if (processo.honorarios?.tipo) {
+        await this.gerarLancamentoDeExito(tenant, processo);
+      }
+      await this.gerarTarefaDeArquivamento(tenant, processo);
     }
 
     return processo;
+  }
+
+  private async gerarTarefaDeArquivamento(tenant: Types.ObjectId, processo: Processo) {
+    const titulo = `Arquivar processo — ${processo.numero_cnj}`;
+    const jaExiste = await this.tarefaModel.findOne({ tenant_id: tenant, numero_processo: processo.numero_cnj, titulo });
+    if (jaExiste) return;
+
+    const vencimento = new Date();
+    vencimento.setDate(vencimento.getDate() + 15);
+
+    await this.tarefaModel.create({
+      tenant_id: tenant,
+      titulo,
+      descricao: 'Processo encerrado — conferir prestação de contas e arquivar.',
+      numero_processo: processo.numero_cnj,
+      data_vencimento: vencimento,
+      prioridade: 'media',
+      origem: 'manual',
+    });
   }
 
   private async gerarLancamentoDeExito(tenant: Types.ObjectId, processo: Processo) {
