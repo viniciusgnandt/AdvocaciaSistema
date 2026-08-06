@@ -37,16 +37,23 @@ import {
   UserRound,
   Users,
   Wallet,
+  X,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/Topbar';
 import {
+  excluirMeta,
   listarClientes,
   listarLancamentos,
+  listarMetas,
   listarProcessos,
   listarTarefas,
   listarUsuarios,
+  salvarMeta,
+  usuarioLogado,
   type Cliente,
   type Lancamento,
+  type Meta,
+  type MetricaMeta,
   type Processo,
   type Tarefa,
   type Usuario,
@@ -886,13 +893,17 @@ function RelatorioEquipe({
         });
       });
 
+    const mesAtual = mesAtualISO();
     return usuarios
       .map((u) => {
         const processosAtivos = processos.filter((p) => p.responsavel_id === u._id && p.status === 'ativo').length;
         const tarefasAbertas = tarefas.filter((t) => t.responsavel_id === u._id && t.status !== 'concluida').length;
         const tarefasAtrasadas = tarefas.filter((t) => t.responsavel_id === u._id && t.status === 'atrasada').length;
+        const tarefasConcluidasMes = tarefas.filter(
+          (t) => t.responsavel_id === u._id && t.status === 'concluida' && t.concluida_em?.slice(0, 7) === mesAtual,
+        ).length;
         const faturamento = faturamentoPorSocio.get(u._id) ?? 0;
-        return { usuario: u, processosAtivos, tarefasAbertas, tarefasAtrasadas, faturamento };
+        return { usuario: u, processosAtivos, tarefasAbertas, tarefasAtrasadas, tarefasConcluidasMes, faturamento };
       })
       .sort((a, b) => b.faturamento - a.faturamento || b.processosAtivos - a.processosAtivos);
   }, [usuarios, processos, tarefas, lancamentos]);
@@ -952,6 +963,171 @@ function RelatorioEquipe({
           </tbody>
         </table>
       </div>
+
+      <MetasDoMes usuarios={usuarios} linhas={linhas} />
     </div>
+  );
+}
+
+const LABEL_METRICA: Record<MetricaMeta, string> = {
+  faturamento: 'Faturamento (honorários de êxito)',
+  processos_ativos: 'Processos ativos',
+  tarefas_concluidas: 'Tarefas concluídas no mês',
+};
+
+function MetasDoMes({
+  usuarios,
+  linhas,
+}: {
+  usuarios: Usuario[];
+  linhas: { usuario: Usuario; processosAtivos: number; tarefasConcluidasMes: number; faturamento: number }[];
+}) {
+  const ehAdmin = usuarioLogado()?.perfil === 'admin';
+  const [metas, setMetas] = useState<Meta[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ usuario_id: '', metrica: 'faturamento' as MetricaMeta, valor_meta: '' });
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const mes = mesAtualISO();
+
+  const carregar = () => {
+    setLoading(true);
+    listarMetas(mes)
+      .then(setMetas)
+      .catch((err) => setErro(err instanceof Error ? err.message : 'erro ao carregar metas'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const valorAtual = (usuarioId: string, metrica: MetricaMeta) => {
+    const linha = linhas.find((l) => l.usuario._id === usuarioId);
+    if (!linha) return 0;
+    if (metrica === 'faturamento') return linha.faturamento;
+    if (metrica === 'processos_ativos') return linha.processosAtivos;
+    return linha.tarefasConcluidasMes;
+  };
+
+  const formatarValor = (metrica: MetricaMeta, valor: number) => (metrica === 'faturamento' ? formatarMoeda(valor) : String(valor));
+
+  const salvar = async () => {
+    if (!form.usuario_id || !form.valor_meta) return;
+    setSalvando(true);
+    setErro(null);
+    try {
+      await salvarMeta({ usuario_id: form.usuario_id, metrica: form.metrica, mes, valor_meta: Number(form.valor_meta) });
+      setForm({ usuario_id: '', metrica: 'faturamento', valor_meta: '' });
+      carregar();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'erro ao salvar meta');
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const remover = async (id: string) => {
+    await excluirMeta(id);
+    carregar();
+  };
+
+  if (loading) return null;
+
+  return (
+    <Cartao
+      titulo="Metas do mês"
+      subtitulo={`Progresso de ${new Date(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`}
+    >
+      {metas.length === 0 ? (
+        <p className="text-sm text-gray-400">Nenhuma meta definida para este mês ainda.</p>
+      ) : (
+        <div className="space-y-3 mb-4">
+          {metas.map((m) => {
+            const usuario = usuarios.find((u) => u._id === m.usuario_id);
+            const atual = valorAtual(m.usuario_id, m.metrica);
+            const pct = Math.min(100, Math.round((atual / m.valor_meta) * 100));
+            return (
+              <div key={m._id} className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-gray-600 dark:text-gray-300 truncate">
+                      {usuario?.nome ?? '—'} · {LABEL_METRICA[m.metrica]}
+                    </span>
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0 ml-2">
+                      {formatarValor(m.metrica, atual)} / {formatarValor(m.metrica, m.valor_meta)}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                    <div
+                      className={cn('h-full rounded-full transition-all', pct >= 100 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-400' : 'bg-red-400')}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+                {ehAdmin && (
+                  <button onClick={() => remover(m._id)} className="shrink-0 p-1 rounded text-gray-300 hover:text-red-500">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {ehAdmin && (
+        <div className="flex flex-wrap items-end gap-2 pt-3 border-t border-gray-100 dark:border-gray-800">
+          <label className="block">
+            <span className="text-xs text-gray-400 mb-1 block">Advogado</span>
+            <select
+              value={form.usuario_id}
+              onChange={(e) => setForm({ ...form, usuario_id: e.target.value })}
+              className="text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-2.5 py-1.5 text-gray-700 dark:text-gray-300"
+            >
+              <option value="">Selecione…</option>
+              {usuarios.map((u) => (
+                <option key={u._id} value={u._id}>
+                  {u.nome}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs text-gray-400 mb-1 block">Métrica</span>
+            <select
+              value={form.metrica}
+              onChange={(e) => setForm({ ...form, metrica: e.target.value as MetricaMeta })}
+              className="text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-2.5 py-1.5 text-gray-700 dark:text-gray-300"
+            >
+              {(Object.keys(LABEL_METRICA) as MetricaMeta[]).map((m) => (
+                <option key={m} value={m}>
+                  {LABEL_METRICA[m]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs text-gray-400 mb-1 block">Meta</span>
+            <input
+              type="number"
+              value={form.valor_meta}
+              onChange={(e) => setForm({ ...form, valor_meta: e.target.value })}
+              className="w-28 text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-2.5 py-1.5 text-gray-700 dark:text-gray-300"
+            />
+          </label>
+          <button
+            onClick={salvar}
+            disabled={salvando}
+            className="text-sm px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium disabled:opacity-50"
+          >
+            {salvando ? 'Salvando…' : 'Definir meta'}
+          </button>
+        </div>
+      )}
+
+      {erro && <p className="text-xs text-red-600 dark:text-red-400 mt-2">{erro}</p>}
+    </Cartao>
   );
 }

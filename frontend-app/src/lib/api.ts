@@ -582,6 +582,29 @@ export type Tarefa = {
   concluida_em?: string;
 };
 
+export type MetricaMeta = 'faturamento' | 'processos_ativos' | 'tarefas_concluidas';
+
+export type Meta = {
+  _id: string;
+  usuario_id: string;
+  metrica: MetricaMeta;
+  mes: string;
+  valor_meta: number;
+};
+
+export function listarMetas(mes?: string) {
+  const query = mes ? `?mes=${mes}` : '';
+  return request<Meta[]>(`/metas${query}`);
+}
+
+export function salvarMeta(dto: { usuario_id: string; metrica: MetricaMeta; mes: string; valor_meta: number }) {
+  return request<Meta>('/metas', { method: 'POST', body: JSON.stringify(dto) });
+}
+
+export function excluirMeta(id: string) {
+  return request<{ ok: boolean } | { erro: string }>(`/metas/${id}`, { method: 'DELETE' });
+}
+
 export function verificarSaudeApi() {
   return request<{ status: string; banco: string; timestamp: string }>('/health');
 }
