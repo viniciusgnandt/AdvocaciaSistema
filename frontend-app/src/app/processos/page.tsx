@@ -4,6 +4,8 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   AlertCircle,
+  Bookmark,
+  BookmarkPlus,
   Building2,
   Calendar,
   CalendarClock,
@@ -57,6 +59,7 @@ import { ComparadorProcessos } from '@/components/processos/ComparadorProcessos'
 import { gerarCapaProcesso } from '@/lib/capaProcesso';
 import { BotaoExportar } from '@/components/ui/BotaoExportar';
 import { exportarExcel, exportarPdf } from '@/lib/exportar';
+import { useFiltrosSalvos } from '@/lib/useFiltrosSalvos';
 
 function formatarMoeda(valor?: number | null) {
   if (valor === undefined || valor === null) return null;
@@ -1100,6 +1103,8 @@ function FiltroProcessos({
   tags: string[];
 }) {
   const set = (parcial: Partial<FiltrosProcessos>) => onChange({ ...filtros, ...parcial });
+  const { salvos, salvar, remover } = useFiltrosSalvos<FiltrosProcessos>('processos');
+  const [nomeNovoFiltro, setNomeNovoFiltro] = useState<string | null>(null);
 
   return (
     <div className="mb-4 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 flex flex-wrap items-center gap-2">
@@ -1190,6 +1195,84 @@ function FiltroProcessos({
           <X size={12} /> limpar
         </button>
       )}
+
+      {salvos.length > 0 && (
+        <select
+          value=""
+          onChange={(e) => {
+            const item = salvos.find((s) => s.id === e.target.value);
+            if (item) onChange(item.filtros);
+          }}
+          className="text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-2.5 py-1.5 text-gray-700 dark:text-gray-300 max-w-[180px]"
+        >
+          <option value="">Filtros salvos…</option>
+          {salvos.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.nome}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {salvos.length > 0 &&
+        (() => {
+          const atual = filtros;
+          const selecionadoParaRemover = salvos.find((s) => JSON.stringify(s.filtros) === JSON.stringify(atual));
+          return selecionadoParaRemover ? (
+            <button
+              onClick={() => remover(selecionadoParaRemover.id)}
+              title={`Remover filtro salvo "${selecionadoParaRemover.nome}"`}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-600 dark:hover:text-red-400 px-2 py-1.5"
+            >
+              <Bookmark size={12} className="fill-current" />
+            </button>
+          ) : null;
+        })()}
+
+      {temFiltroAtivo(filtros) &&
+        (nomeNovoFiltro === null ? (
+          <button
+            onClick={() => setNomeNovoFiltro('')}
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1.5"
+          >
+            <BookmarkPlus size={12} /> salvar filtro
+          </button>
+        ) : (
+          <div className="flex items-center gap-1">
+            <input
+              autoFocus
+              value={nomeNovoFiltro}
+              onChange={(e) => setNomeNovoFiltro(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && nomeNovoFiltro.trim()) {
+                  salvar(nomeNovoFiltro.trim(), filtros);
+                  setNomeNovoFiltro(null);
+                } else if (e.key === 'Escape') {
+                  setNomeNovoFiltro(null);
+                }
+              }}
+              placeholder="Nome do filtro"
+              className="text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-2.5 py-1.5 text-gray-700 dark:text-gray-300 w-32"
+            />
+            <button
+              onClick={() => {
+                if (nomeNovoFiltro.trim()) {
+                  salvar(nomeNovoFiltro.trim(), filtros);
+                  setNomeNovoFiltro(null);
+                }
+              }}
+              className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline px-1"
+            >
+              salvar
+            </button>
+            <button
+              onClick={() => setNomeNovoFiltro(null)}
+              className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-1"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        ))}
     </div>
   );
 }
