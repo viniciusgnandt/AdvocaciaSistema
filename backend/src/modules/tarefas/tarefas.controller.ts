@@ -45,7 +45,10 @@ export class TarefasController {
 
     const filtro: Record<string, unknown> = { tenant_id: tenant };
     if (status) filtro.status = status;
-    if (responsavelId) filtro.responsavel_id = new Types.ObjectId(responsavelId);
+    if (responsavelId) {
+      const responsavelObjId = new Types.ObjectId(responsavelId);
+      filtro.$or = [{ responsavel_id: responsavelObjId }, { responsaveis_adicionais: responsavelObjId }];
+    }
     if (numeroProcesso) filtro.numero_processo = numeroProcesso;
     if (atrasadas === 'true') {
       filtro.status = 'atrasada';
@@ -127,6 +130,7 @@ export class TarefasController {
     if (dto.data_vencimento) set.data_vencimento = new Date(dto.data_vencimento);
     if (dto.status === 'concluida') set.concluida_em = new Date();
     if (dto.responsavel_id) set.responsavel_id = new Types.ObjectId(dto.responsavel_id);
+    if (dto.responsaveis_adicionais) set.responsaveis_adicionais = dto.responsaveis_adicionais.map((id) => new Types.ObjectId(id));
     if (recorrencia === '') unset.recorrencia = '';
     else if (recorrencia) set.recorrencia = recorrencia;
 

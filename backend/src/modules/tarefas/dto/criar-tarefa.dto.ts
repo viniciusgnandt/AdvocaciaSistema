@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsISO8601, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsIn, IsISO8601, IsOptional, IsString } from 'class-validator';
 
 export class CriarTarefaDto {
   @ApiProperty()
@@ -34,6 +34,12 @@ export class CriarTarefaDto {
   @IsOptional()
   @IsString()
   responsavel_id?: string;
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  responsaveis_adicionais?: string[];
 
   @ApiProperty({ required: false, enum: ['diaria', 'semanal', 'mensal', 'anual'] })
   @IsOptional()

@@ -664,6 +664,7 @@ export type Tarefa = {
   publicacao_id?: string;
   numero_processo?: string;
   responsavel_id?: string;
+  responsaveis_adicionais?: string[];
   data_vencimento: string;
   prioridade: 'baixa' | 'media' | 'alta' | 'critica';
   status: StatusTarefa;
@@ -771,6 +772,7 @@ export function criarTarefa(dto: {
   data_vencimento: string;
   prioridade?: string;
   responsavel_id?: string;
+  responsaveis_adicionais?: string[];
   numero_processo?: string;
   recorrencia?: FrequenciaRecorrencia;
 }) {
@@ -786,6 +788,7 @@ export function atualizarTarefa(
     status?: string;
     prioridade?: string;
     responsavel_id?: string;
+    responsaveis_adicionais?: string[];
     numero_processo?: string;
     recorrencia?: FrequenciaRecorrencia | '';
   },

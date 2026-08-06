@@ -14,6 +14,7 @@ import {
   Repeat,
   Trash2,
   User,
+  Users,
   X,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/Topbar';
@@ -455,6 +456,7 @@ function TarefaModal({
     prioridade: tarefa?.prioridade ?? 'media',
     status: tarefa?.status ?? ('pendente' as StatusTarefa),
     responsavel_id: tarefa?.responsavel_id ?? '',
+    responsaveis_adicionais: tarefa?.responsaveis_adicionais ?? ([] as string[]),
     numero_processo: tarefa?.numero_processo ?? '',
     recorrencia: tarefa?.recorrencia ?? ('' as Tarefa['recorrencia'] | ''),
   });
@@ -477,6 +479,7 @@ function TarefaModal({
           prioridade: form.prioridade,
           status: form.status,
           responsavel_id: form.responsavel_id || undefined,
+          responsaveis_adicionais: form.responsaveis_adicionais,
           numero_processo: form.numero_processo || undefined,
           recorrencia: form.recorrencia || '',
         });
@@ -487,6 +490,7 @@ function TarefaModal({
           data_vencimento: new Date(form.data_vencimento).toISOString(),
           prioridade: form.prioridade,
           responsavel_id: form.responsavel_id || undefined,
+          responsaveis_adicionais: form.responsaveis_adicionais,
           numero_processo: form.numero_processo || undefined,
           recorrencia: form.recorrencia || undefined,
         });
@@ -612,6 +616,43 @@ function TarefaModal({
                 ))}
               </select>
             </label>
+
+            {usuarios.filter((u) => u._id !== form.responsavel_id).length > 0 && (
+              <label className="block">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block flex items-center gap-1">
+                  <Users size={11} /> Responsáveis extras
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {usuarios
+                    .filter((u) => u._id !== form.responsavel_id)
+                    .map((u) => {
+                      const marcado = form.responsaveis_adicionais.includes(u._id);
+                      return (
+                        <button
+                          key={u._id}
+                          type="button"
+                          onClick={() =>
+                            setForm({
+                              ...form,
+                              responsaveis_adicionais: marcado
+                                ? form.responsaveis_adicionais.filter((id) => id !== u._id)
+                                : [...form.responsaveis_adicionais, u._id],
+                            })
+                          }
+                          className={cn(
+                            'text-xs px-2 py-1 rounded-full border',
+                            marcado
+                              ? 'bg-brand-50 dark:bg-brand-900/30 border-brand-300 dark:border-brand-700 text-brand-700 dark:text-brand-400'
+                              : 'border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400',
+                          )}
+                        >
+                          {u.nome}
+                        </button>
+                      );
+                    })}
+                </div>
+              </label>
+            )}
 
             {editando && (
               <label className="block">

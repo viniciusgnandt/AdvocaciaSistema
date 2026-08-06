@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsISO8601, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsIn, IsISO8601, IsOptional, IsString } from 'class-validator';
 
 export class AtualizarTarefaDto {
   @ApiProperty({ required: false })
@@ -31,6 +31,12 @@ export class AtualizarTarefaDto {
   @IsOptional()
   @IsString()
   responsavel_id?: string;
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  responsaveis_adicionais?: string[];
 
   @ApiProperty({ required: false, description: 'Numero CNJ do processo vinculado, ou string vazia para desvincular' })
   @IsOptional()

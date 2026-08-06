@@ -26,6 +26,11 @@ export class Tarefa extends Document {
   @Prop({ type: Types.ObjectId })
   responsavel_id?: Types.ObjectId;
 
+  // responsaveis extras alem do principal - tarefa que envolve mais de uma pessoa
+  // (ex.: advogado + estagiario revisando uma peca juntos)
+  @Prop({ type: [Types.ObjectId], default: [], index: true })
+  responsaveis_adicionais: Types.ObjectId[];
+
   @Prop({ required: true, index: true })
   data_vencimento: Date;
 
