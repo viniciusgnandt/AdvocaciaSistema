@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { randomBytes } from 'crypto';
@@ -208,9 +208,18 @@ export class ClientesService {
     clienteId: Types.ObjectId,
     dto: AtualizarClienteDto,
   ): Promise<Cliente | null> {
+    const { versao_esperada, ...resto } = dto;
+
+    if (versao_esperada) {
+      const atual = await this.clienteModel.findOne({ _id: clienteId, tenant_id: tenantId }, 'updated_at');
+      if (atual && atual.get('updated_at')?.toISOString() !== versao_esperada) {
+        throw new ConflictException('este cliente foi alterado por outra pessoa - recarregue antes de salvar');
+      }
+    }
+
     const cliente = await this.clienteModel.findOneAndUpdate(
       { _id: clienteId, tenant_id: tenantId },
-      { $set: dto },
+      { $set: resto },
       { new: true },
     );
     // nome pode ter mudado - reavalia o vinculo automatico com processos (idempotente,

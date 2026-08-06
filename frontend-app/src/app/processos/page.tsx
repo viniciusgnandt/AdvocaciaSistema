@@ -692,14 +692,21 @@ function DetalhesProcessoForm({
       .catch(() => undefined);
   }, []);
 
+  const [conflito, setConflito] = useState(false);
+
   const salvar = async () => {
     setSalvando(true);
     setErro(null);
+    setConflito(false);
     try {
-      const atualizado = await atualizarProcesso(processo.numero_cnj, form);
+      const atualizado = await atualizarProcesso(processo.numero_cnj, { ...form, versao_esperada: processo.updated_at });
       onSalvo(atualizado);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : 'erro ao salvar');
+      if (err instanceof Error && err.message.includes('API 409')) {
+        setConflito(true);
+      } else {
+        setErro(err instanceof Error ? err.message : 'erro ao salvar');
+      }
     } finally {
       setSalvando(false);
     }
@@ -873,6 +880,21 @@ function DetalhesProcessoForm({
           className={cn(inputCls, 'resize-none')}
         />
       </label>
+
+      {conflito && (
+        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 space-y-2">
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            Este processo foi alterado por outra pessoa enquanto você editava. Recarregue para ver a versão mais recente
+            antes de salvar suas mudanças.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:underline"
+          >
+            Recarregar página
+          </button>
+        </div>
+      )}
 
       {erro && <p className="text-xs text-red-600 dark:text-red-400">{erro}</p>}
 

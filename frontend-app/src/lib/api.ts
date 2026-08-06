@@ -422,6 +422,7 @@ export type Processo = {
   responsavel_id?: string;
   tags: string[];
   clientes_adicionais?: string[];
+  updated_at?: string;
 };
 
 export type AtualizarProcesso = {
@@ -432,6 +433,7 @@ export type AtualizarProcesso = {
   status?: string;
   responsavel_id?: string;
   tags?: string[];
+  versao_esperada?: string;
 };
 
 export type FiltrosProcessos = {
@@ -542,6 +544,7 @@ export type Cliente = {
   endereco?: Endereco;
   portal_ativo?: boolean;
   portal_token?: string;
+  updated_at?: string;
 };
 
 export type NovoCliente = {
@@ -645,7 +648,10 @@ export function verificarDuplicidadeCliente(dados: { nome?: string; cpf?: string
   return request<ClienteDuplicado[]>(`/clientes/verificar-duplicidade?${params.toString()}`);
 }
 
-export function atualizarCliente(id: string, dto: Partial<NovoCliente & { status: Cliente['status'] }>) {
+export function atualizarCliente(
+  id: string,
+  dto: Partial<NovoCliente & { status: Cliente['status']; versao_esperada: string }>,
+) {
   return request<Cliente>(`/clientes/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
 }
 

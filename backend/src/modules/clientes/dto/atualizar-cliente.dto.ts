@@ -75,4 +75,12 @@ export class AtualizarClienteDto {
   @IsOptional()
   @IsObject()
   endereco?: EnderecoDto;
+
+  @ApiProperty({
+    required: false,
+    description: 'updated_at que o cliente tinha quando o form foi aberto - se nao bater com o atual, indica edicao concorrente',
+  })
+  @IsOptional()
+  @IsString()
+  versao_esperada?: string;
 }

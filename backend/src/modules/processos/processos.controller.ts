@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -115,9 +115,14 @@ export class ProcessosController {
     const anterior = await this.processoModel.findOne({ tenant_id: tenant, numero_cnj: numeroLimpo });
     if (!anterior) return { erro: 'processo nao encontrado' };
 
+    const { versao_esperada, ...dadosAtualizacao } = dto;
+    if (versao_esperada && anterior.get('updated_at')?.toISOString() !== versao_esperada) {
+      throw new ConflictException('este processo foi alterado por outra pessoa - recarregue antes de salvar');
+    }
+
     const processo = await this.processoModel.findOneAndUpdate(
       { tenant_id: tenant, numero_cnj: numeroLimpo },
-      { $set: dto },
+      { $set: dadosAtualizacao },
       { new: true },
     );
     if (!processo) return { erro: 'processo nao encontrado' };

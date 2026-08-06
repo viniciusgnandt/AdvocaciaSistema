@@ -706,6 +706,8 @@ function ClienteModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.nome, form.cpf, form.cnpj, form.tipo]);
 
+  const [conflito, setConflito] = useState(false);
+
   const salvar = async () => {
     if (!form.nome.trim()) {
       setErro('Informe o nome.');
@@ -717,11 +719,18 @@ function ClienteModal({
     }
     setSalvando(true);
     setErro(null);
+    setConflito(false);
     try {
-      const cliente = editando ? await atualizarCliente(clienteEditando._id, form) : await criarCliente(form);
+      const cliente = editando
+        ? await atualizarCliente(clienteEditando._id, { ...form, versao_esperada: clienteEditando.updated_at })
+        : await criarCliente(form);
       onSalvo(cliente);
     } catch (err) {
-      setErro(err instanceof Error ? err.message : 'erro ao salvar cliente');
+      if (err instanceof Error && err.message.includes('API 409')) {
+        setConflito(true);
+      } else {
+        setErro(err instanceof Error ? err.message : 'erro ao salvar cliente');
+      }
     } finally {
       setSalvando(false);
     }
@@ -938,6 +947,21 @@ function ClienteModal({
               className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100 resize-none"
             />
           </Campo>
+
+          {conflito && (
+            <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 space-y-2">
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Este cliente foi alterado por outra pessoa enquanto você editava. Recarregue para ver a versão mais
+                recente antes de salvar.
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:underline"
+              >
+                Recarregar página
+              </button>
+            </div>
+          )}
 
           {erro && <p className="text-xs text-red-600 dark:text-red-400">{erro}</p>}
 
