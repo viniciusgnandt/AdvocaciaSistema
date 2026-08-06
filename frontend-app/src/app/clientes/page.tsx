@@ -49,6 +49,7 @@ import {
 import { cn } from '@/lib/cn';
 import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
 import HistoricoAmigavel from '@/components/common/HistoricoAmigavel';
+import NotasRapidas from '@/components/common/NotasRapidas';
 import { GerarProcuracaoModal } from '@/components/clientes/GerarProcuracaoModal';
 import { OnboardingClienteModal } from '@/components/clientes/OnboardingClienteModal';
 import { validarCpf, validarCnpj } from '@/lib/documento';
@@ -428,6 +429,10 @@ function ClientesPageConteudo() {
                     Documentos enviados diretamente pelo cliente, antes ou independente de um processo.
                   </p>
                   <ArquivosProcesso escopo={{ clienteId: selecionado._id }} />
+                </div>
+
+                <div className="rounded-lg border border-gray-100 dark:border-gray-800 p-3">
+                  <NotasRapidas entidade="cliente" entidadeId={selecionado._id} />
                 </div>
 
                 <div className="rounded-lg border border-gray-100 dark:border-gray-800 p-3">

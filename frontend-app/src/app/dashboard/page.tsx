@@ -111,6 +111,97 @@ function ResumoSemanal({ tarefas, lancamentos }: { tarefas: Tarefa[]; lancamento
   );
 }
 
+function ehHoje(data: string | Date) {
+  const d = new Date(data);
+  const hoje = new Date();
+  return d.getFullYear() === hoje.getFullYear() && d.getMonth() === hoje.getMonth() && d.getDate() === hoje.getDate();
+}
+
+type ItemFeedDiario = {
+  id: string;
+  tipo: 'tarefa' | 'audiencia' | 'prazo';
+  titulo: string;
+  subtitulo?: string;
+  hora?: string;
+  href: string;
+};
+
+function FeedDiario({ tarefas, eventos }: { tarefas: Tarefa[]; eventos: AgendaEvento[] }) {
+  const itens: ItemFeedDiario[] = [
+    ...tarefas
+      .filter((t) => t.status !== 'concluida' && ehHoje(t.data_vencimento))
+      .map((t) => ({
+        id: `tar-${t._id}`,
+        tipo: 'tarefa' as const,
+        titulo: t.titulo,
+        subtitulo: t.numero_processo,
+        hora: new Date(t.data_vencimento).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        href: '/tarefas',
+      })),
+    ...eventos
+      .filter((e) => ehHoje(e.data))
+      .map((e) => ({
+        id: `evt-${e.publicacao_id}`,
+        tipo: e.tipo,
+        titulo: e.titulo,
+        subtitulo: e.numero_processo,
+        hora: new Date(e.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        href: '/publicacoes',
+      })),
+  ].sort((a, b) => (a.hora ?? '').localeCompare(b.hora ?? ''));
+
+  const ICONE: Record<ItemFeedDiario['tipo'], typeof CheckSquare> = {
+    tarefa: CheckSquare,
+    audiencia: Gavel,
+    prazo: AlertTriangle,
+  };
+
+  const hojeFormatado = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+
+  return (
+    <div className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+          <Calendar size={14} className="text-brand-500" /> Hoje
+        </p>
+        <p className="text-xs text-gray-400 capitalize">{hojeFormatado}</p>
+      </div>
+      {itens.length === 0 ? (
+        <p className="px-4 py-8 text-center text-sm text-gray-400">Nada pendente para hoje. 🎉</p>
+      ) : (
+        <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+          {itens.map((item) => {
+            const Icone = ICONE[item.tipo];
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+              >
+                <span
+                  className={cn(
+                    'w-7 h-7 rounded-full flex items-center justify-center shrink-0',
+                    item.tipo === 'tarefa'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                      : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400',
+                  )}
+                >
+                  <Icone size={13} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-gray-800 dark:text-gray-200 truncate">{item.titulo}</p>
+                  {item.subtitulo && <p className="text-xs text-gray-400 font-mono truncate">{item.subtitulo}</p>}
+                </div>
+                {item.hora && <span className="text-xs text-gray-400 shrink-0">{item.hora}</span>}
+              </Link>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 const PRIORIDADE_COR: Record<string, string> = {
   baixa: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300',
   media: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
@@ -186,6 +277,8 @@ export default function DashboardPage() {
           <StatCard icon={Gavel} label="Processos ativos" value={loading ? '—' : totalProcessosAtivos} />
           <StatCard icon={Users} label="Clientes" value={loading ? '—' : totalClientes} />
         </div>
+
+        {!loading && <FeedDiario tarefas={tarefas} eventos={eventos} />}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <Painel titulo="Próximos prazos" href="/tarefas" icone={CheckSquare} vazio="Nenhum prazo pendente." loading={loading}>

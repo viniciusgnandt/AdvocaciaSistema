@@ -17,6 +17,7 @@ import { PortalModule } from './modules/portal/portal.module';
 import { HealthModule } from './modules/health/health.module';
 import { MetasModule } from './modules/metas/metas.module';
 import { ChecklistsModule } from './modules/checklists/checklists.module';
+import { NotasModule } from './modules/notas/notas.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ChecklistsModule } from './modules/checklists/checklists.module';
     HealthModule,
     MetasModule,
     ChecklistsModule,
+    NotasModule,
   ],
 })
 export class AppModule {}

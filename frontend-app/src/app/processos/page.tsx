@@ -20,6 +20,7 @@ import {
   ScrollText,
   Search,
   Star,
+  StickyNote,
   Tag,
   UserRound,
   Wallet,
@@ -47,6 +48,7 @@ import { FinanceiroProcesso } from '@/components/processos/FinanceiroProcesso';
 import { TarefasProcesso } from '@/components/processos/TarefasProcesso';
 import { TimelineProcesso } from '@/components/processos/TimelineProcesso';
 import HistoricoAmigavel from '@/components/common/HistoricoAmigavel';
+import NotasRapidas from '@/components/common/NotasRapidas';
 import { BotaoFavorito } from '@/components/common/BotaoFavorito';
 import { useFavoritos } from '@/lib/useFavoritos';
 import { ModoApresentacao } from '@/components/processos/ModoApresentacao';
@@ -370,7 +372,7 @@ function saudeProcesso(p: Processo): { cor: string; titulo: string } | null {
   return { cor: 'bg-green-500', titulo: 'Em dia' };
 }
 
-type AbaProcesso = 'timeline' | 'movimentacoes' | 'arquivos' | 'tarefas' | 'financeiro' | 'historico';
+type AbaProcesso = 'timeline' | 'movimentacoes' | 'arquivos' | 'tarefas' | 'financeiro' | 'historico' | 'notas';
 
 const ABAS_PROCESSO: { id: AbaProcesso; label: string; icon: typeof Gavel }[] = [
   { id: 'timeline', label: 'Timeline', icon: HistoryIcon },
@@ -379,6 +381,7 @@ const ABAS_PROCESSO: { id: AbaProcesso; label: string; icon: typeof Gavel }[] = 
   { id: 'tarefas', label: 'Tarefas', icon: CheckSquare },
   { id: 'financeiro', label: 'Financeiro', icon: Wallet },
   { id: 'historico', label: 'Histórico', icon: ScrollText },
+  { id: 'notas', label: 'Notas', icon: StickyNote },
 ];
 
 const LABEL_HONORARIO: Record<string, string> = {
@@ -570,6 +573,8 @@ function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtu
           {aba === 'financeiro' && <FinanceiroProcesso numeroProcesso={processo.numero_cnj} />}
 
           {aba === 'historico' && <HistoricoAmigavel entidade="processo" entidadeId={processo.numero_cnj} />}
+
+          {aba === 'notas' && <NotasRapidas entidade="processo" entidadeId={processo.numero_cnj} />}
         </div>
       </div>
 

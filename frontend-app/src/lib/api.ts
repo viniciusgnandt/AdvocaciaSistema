@@ -611,6 +611,28 @@ export function buscarCliente(id: string) {
 
 export type ClienteDuplicado = { id: string; nome: string; cpf?: string; cnpj?: string; motivo: 'cpf' | 'cnpj' | 'nome' };
 
+export type Nota = {
+  _id: string;
+  entidade: 'processo' | 'cliente';
+  entidade_id: string;
+  texto: string;
+  usuario_id: string;
+  usuario_nome: string;
+  created_at: string;
+};
+
+export function listarNotas(entidade: 'processo' | 'cliente', entidadeId: string) {
+  return request<Nota[]>(`/notas?entidade=${entidade}&entidadeId=${encodeURIComponent(entidadeId)}`);
+}
+
+export function criarNota(entidade: 'processo' | 'cliente', entidadeId: string, texto: string) {
+  return request<Nota>('/notas', { method: 'POST', body: JSON.stringify({ entidade, entidade_id: entidadeId, texto }) });
+}
+
+export function excluirNota(id: string) {
+  return request<{ ok: boolean } | { erro: string }>(`/notas/${id}`, { method: 'DELETE' });
+}
+
 export function verificarDuplicidadeCliente(dados: { nome?: string; cpf?: string; cnpj?: string; ignorarId?: string }) {
   const params = new URLSearchParams();
   if (dados.nome?.trim()) params.set('nome', dados.nome.trim());
