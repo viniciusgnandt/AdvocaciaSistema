@@ -78,6 +78,20 @@ function temFiltroAtivo(filtros: FiltrosProcessos) {
   return !!(filtros.tribunal || filtros.classe || filtros.status || filtros.busca || filtros.tag);
 }
 
+function idadeProcesso(processo: Processo): string | null {
+  if (!processo.data_ajuizamento) return null;
+  const inicio = new Date(processo.data_ajuizamento);
+  if (Number.isNaN(inicio.getTime())) return null;
+  const dias = Math.floor((Date.now() - inicio.getTime()) / (24 * 60 * 60 * 1000));
+  if (dias < 0) return null;
+  if (dias < 30) return `${dias}d`;
+  const meses = Math.floor(dias / 30);
+  if (meses < 12) return `${meses}m`;
+  const anos = Math.floor(dias / 365);
+  const mesesRestantes = Math.floor((dias % 365) / 30);
+  return mesesRestantes > 0 ? `${anos}a ${mesesRestantes}m` : `${anos}a`;
+}
+
 function tituloPartes(processo: Processo) {
   if (processo.parte_ativa && processo.parte_passiva) {
     return `${capitalizarNome(processo.parte_ativa)} x ${capitalizarNome(processo.parte_passiva)}`;
@@ -307,6 +321,11 @@ function ProcessosPageConteudo() {
                   <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-400 dark:text-gray-500">
                     <Landmark size={11} /> {p.tribunal ?? '—'}
                     {p.orgao_julgador && <span className="truncate">· {p.orgao_julgador}</span>}
+                    {idadeProcesso(p) && (
+                      <span className="shrink-0 ml-auto flex items-center gap-1" title="Tempo desde o ajuizamento">
+                        <Clock size={11} /> {idadeProcesso(p)}
+                      </span>
+                    )}
                   </div>
                 </li>
               ))}
