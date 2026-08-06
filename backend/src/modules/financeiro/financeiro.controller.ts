@@ -19,10 +19,26 @@ export class FinanceiroController {
   @Post()
   @ApiOperation({ summary: 'Cria um lancamento (receita ou despesa)' })
   async criar(@Headers('x-tenant-id') tenantId: string, @Body() dto: CriarLancamentoDto, @CurrentUser() usuario: UsuarioAutenticado) {
-    const resultado = await this.financeiroService.criar(new Types.ObjectId(tenantId), dto);
+    const resultado = await this.financeiroService.criar(new Types.ObjectId(tenantId), dto, usuario);
     const primeiro = Array.isArray(resultado) ? resultado[0] : resultado;
     this.auditoriaService.registrar(usuario, 'criar', 'lancamento', String(primeiro._id), primeiro.descricao);
     return resultado;
+  }
+
+  @Patch(':id/aprovar')
+  @ApiOperation({ summary: 'Aprova uma despesa pendente (admin ou financeiro.gerenciar)' })
+  async aprovar(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string, @CurrentUser() usuario: UsuarioAutenticado) {
+    const lancamento = await this.financeiroService.aprovar(new Types.ObjectId(tenantId), new Types.ObjectId(id), usuario);
+    this.auditoriaService.registrar(usuario, 'atualizar', 'lancamento', id, `Despesa aprovada: ${lancamento.descricao}`);
+    return lancamento;
+  }
+
+  @Patch(':id/rejeitar')
+  @ApiOperation({ summary: 'Rejeita uma despesa pendente (admin ou financeiro.gerenciar)' })
+  async rejeitar(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string, @CurrentUser() usuario: UsuarioAutenticado) {
+    const lancamento = await this.financeiroService.rejeitar(new Types.ObjectId(tenantId), new Types.ObjectId(id), usuario);
+    this.auditoriaService.registrar(usuario, 'atualizar', 'lancamento', id, `Despesa rejeitada: ${lancamento.descricao}`);
+    return lancamento;
   }
 
   @Get()

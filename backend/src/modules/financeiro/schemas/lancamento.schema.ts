@@ -3,6 +3,7 @@ import { Document, Types } from 'mongoose';
 
 export type TipoLancamento = 'receita' | 'despesa';
 export type StatusLancamento = 'pendente' | 'pago' | 'atrasado' | 'cancelado';
+export type StatusAprovacao = 'aprovado' | 'pendente' | 'rejeitado';
 
 @Schema({ timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } })
 export class Lancamento extends Document {
@@ -45,6 +46,25 @@ export class Lancamento extends Document {
 
   @Prop()
   parcela_total?: number;
+
+  // fluxo de aprovacao - so se aplica a despesas lancadas por quem nao e' admin/nao
+  // tem "financeiro.gerenciar"; nesses casos comeca "pendente" e so pode virar "pago"
+  // depois de aprovado. Despesas de quem ja tem a permissao nascem "aprovado" (nao
+  // precisam aprovar o proprio lancamento)
+  @Prop({ default: 'aprovado', enum: ['aprovado', 'pendente', 'rejeitado'] })
+  aprovacao_status: StatusAprovacao;
+
+  @Prop()
+  solicitado_por_nome?: string;
+
+  @Prop({ type: Types.ObjectId })
+  aprovado_por?: Types.ObjectId;
+
+  @Prop()
+  aprovado_por_nome?: string;
+
+  @Prop()
+  aprovado_em?: Date;
 }
 
 export const LancamentoSchema = SchemaFactory.createForClass(Lancamento);

@@ -2,18 +2,21 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Briefcase, Check, ChevronLeft, ChevronRight, Plus, Trash2, TrendingDown, TrendingUp, Wallet, X } from 'lucide-react';
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, Briefcase, Check, ChevronLeft, ChevronRight, Plus, ShieldCheck, Trash2, TrendingDown, TrendingUp, Wallet, X } from 'lucide-react';
 import { Topbar } from '@/components/layout/Topbar';
 import { StatCard } from '@/components/ui/StatCard';
 import { BotaoExportar } from '@/components/ui/BotaoExportar';
 import { TerceirizacaoAba } from '@/components/financeiro/TerceirizacaoAba';
 import { exportarExcel, exportarPdf } from '@/lib/exportar';
 import {
+  aprovarDespesa,
   atualizarLancamento,
   criarLancamento,
   excluirLancamento,
   listarLancamentos,
+  rejeitarDespesa,
   resumoFinanceiro,
+  usuarioLogado,
   type Lancamento,
   type ResumoFinanceiro,
   type TipoLancamento,
@@ -85,6 +88,24 @@ export default function FinanceiroPage() {
     try {
       await atualizarLancamento(l._id, { status: 'pago' });
       resumoFinanceiro(mes).then(setResumo);
+    } catch {
+      carregar();
+    }
+  };
+
+  const aprovar = async (l: Lancamento) => {
+    setLancamentos((atual) => atual.map((x) => (x._id === l._id ? { ...x, aprovacao_status: 'aprovado' } : x)));
+    try {
+      await aprovarDespesa(l._id);
+    } catch {
+      carregar();
+    }
+  };
+
+  const rejeitar = async (l: Lancamento) => {
+    setLancamentos((atual) => atual.map((x) => (x._id === l._id ? { ...x, aprovacao_status: 'rejeitado' } : x)));
+    try {
+      await rejeitarDespesa(l._id);
     } catch {
       carregar();
     }
@@ -272,6 +293,9 @@ export default function FinanceiroPage() {
                   <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
                     <span>{new Date(l.data_vencimento).toLocaleDateString('pt-BR')}</span>
                     {l.categoria && <span>· {l.categoria}</span>}
+                    {l.aprovacao_status === 'pendente' && l.solicitado_por_nome && (
+                      <span>· solicitado por {l.solicitado_por_nome}</span>
+                    )}
                     {l.numero_processo && (
                       <button
                         onClick={(e) => {
@@ -308,7 +332,37 @@ export default function FinanceiroPage() {
                   {STATUS_LABEL[l.status]}
                 </span>
 
-                {l.status !== 'pago' && l.status !== 'cancelado' && (
+                {l.tipo === 'despesa' && l.aprovacao_status === 'pendente' && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 shrink-0">
+                    Aguardando aprovação
+                  </span>
+                )}
+                {l.tipo === 'despesa' && l.aprovacao_status === 'rejeitado' && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 shrink-0">
+                    Rejeitada
+                  </span>
+                )}
+
+                {l.tipo === 'despesa' && l.aprovacao_status === 'pendente' && usuarioLogado()?.perfil === 'admin' && (
+                  <>
+                    <button
+                      onClick={() => aprovar(l)}
+                      title="Aprovar despesa"
+                      className="p-1.5 rounded-lg text-gray-300 hover:text-green-600 dark:hover:text-green-400 shrink-0"
+                    >
+                      <ShieldCheck size={14} />
+                    </button>
+                    <button
+                      onClick={() => rejeitar(l)}
+                      title="Rejeitar despesa"
+                      className="p-1.5 rounded-lg text-gray-300 hover:text-red-600 dark:hover:text-red-400 shrink-0"
+                    >
+                      <X size={14} />
+                    </button>
+                  </>
+                )}
+
+                {l.status !== 'pago' && l.status !== 'cancelado' && l.aprovacao_status !== 'pendente' && l.aprovacao_status !== 'rejeitado' && (
                   <button
                     onClick={() => marcarPago(l)}
                     title="Marcar como pago"

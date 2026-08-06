@@ -912,6 +912,8 @@ export function atualizarPublicacoesEmMassa(ids: string[], dados: { status?: str
 export type TipoLancamento = 'receita' | 'despesa';
 export type StatusLancamento = 'pendente' | 'pago' | 'atrasado' | 'cancelado';
 
+export type StatusAprovacao = 'aprovado' | 'pendente' | 'rejeitado';
+
 export type Lancamento = {
   _id: string;
   tipo: TipoLancamento;
@@ -926,6 +928,10 @@ export type Lancamento = {
   grupo_parcelamento_id?: string;
   parcela_atual?: number;
   parcela_total?: number;
+  aprovacao_status: StatusAprovacao;
+  solicitado_por_nome?: string;
+  aprovado_por_nome?: string;
+  aprovado_em?: string;
 };
 
 export type ResumoFinanceiro = {
@@ -971,6 +977,14 @@ export function atualizarLancamento(id: string, dto: Partial<Pick<Lancamento, 'd
 
 export function excluirLancamento(id: string, todasParcelas = false) {
   return request<{ ok: boolean }>(`/financeiro/${id}${todasParcelas ? '?todasParcelas=true' : ''}`, { method: 'DELETE' });
+}
+
+export function aprovarDespesa(id: string) {
+  return request<Lancamento>(`/financeiro/${id}/aprovar`, { method: 'PATCH' });
+}
+
+export function rejeitarDespesa(id: string) {
+  return request<Lancamento>(`/financeiro/${id}/rejeitar`, { method: 'PATCH' });
 }
 
 export type EtapaOportunidade = 'novo' | 'contato' | 'proposta' | 'negociacao' | 'ganho' | 'perdido';

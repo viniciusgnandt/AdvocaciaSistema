@@ -132,7 +132,7 @@ export class ProcessosController {
     // resolvem os pontos onde o advogado mais esquece de agir manualmente)
     if (dto.status === 'encerrado' && anterior.status !== 'encerrado') {
       if (processo.honorarios?.tipo) {
-        await this.gerarLancamentoDeExito(tenant, processo);
+        await this.gerarLancamentoDeExito(tenant, processo, usuario);
       }
       await this.gerarTarefaDeArquivamento(tenant, processo);
     }
@@ -159,7 +159,7 @@ export class ProcessosController {
     });
   }
 
-  private async gerarLancamentoDeExito(tenant: Types.ObjectId, processo: Processo) {
+  private async gerarLancamentoDeExito(tenant: Types.ObjectId, processo: Processo, usuario: UsuarioAutenticado) {
     const honorarios = processo.honorarios;
     if (!honorarios) return;
 
@@ -179,15 +179,19 @@ export class ProcessosController {
     }
     if (!valor || valor <= 0) return;
 
-    await this.financeiroService.criar(tenant, {
-      tipo: 'receita',
-      descricao: `Honorários de êxito — ${processo.numero_cnj}`,
-      valor,
-      categoria: 'honorarios_exito',
-      clienteId: processo.cliente_id ? String(processo.cliente_id) : undefined,
-      numero_processo: processo.numero_cnj,
-      data_vencimento: new Date().toISOString(),
-    });
+    await this.financeiroService.criar(
+      tenant,
+      {
+        tipo: 'receita',
+        descricao: `Honorários de êxito — ${processo.numero_cnj}`,
+        valor,
+        categoria: 'honorarios_exito',
+        clienteId: processo.cliente_id ? String(processo.cliente_id) : undefined,
+        numero_processo: processo.numero_cnj,
+        data_vencimento: new Date().toISOString(),
+      },
+      usuario,
+    );
   }
 
   @Post(':numeroCnj/enriquecer')

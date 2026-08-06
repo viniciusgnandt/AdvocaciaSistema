@@ -1,15 +1,24 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Lancamento } from './schemas/lancamento.schema';
 import { CriarLancamentoDto } from './dto/criar-lancamento.dto';
 import { AtualizarLancamentoDto } from './dto/atualizar-lancamento.dto';
+import { UsuarioAutenticado } from '../auth/decorators/current-user.decorator';
+
+function podeAprovarDespesa(usuario: UsuarioAutenticado): boolean {
+  return usuario.perfil === 'admin' || !!usuario.permissoes?.includes('financeiro.gerenciar');
+}
 
 @Injectable()
 export class FinanceiroService {
   constructor(@InjectModel(Lancamento.name) private readonly lancamentoModel: Model<Lancamento>) {}
 
-  async criar(tenantId: Types.ObjectId, dto: CriarLancamentoDto) {
+  async criar(tenantId: Types.ObjectId, dto: CriarLancamentoDto, usuario: UsuarioAutenticado) {
+    // despesa lancada por quem nao tem alcada nasce pendente de aprovacao; o resto
+    // (receitas, ou despesas de quem ja pode aprovar) nasce ja aprovado
+    const precisaAprovacao = dto.tipo === 'despesa' && !podeAprovarDespesa(usuario);
+
     const base = {
       tenant_id: tenantId,
       tipo: dto.tipo,
@@ -17,6 +26,8 @@ export class FinanceiroService {
       categoria: dto.categoria,
       cliente_id: dto.clienteId ? new Types.ObjectId(dto.clienteId) : undefined,
       numero_processo: dto.numero_processo,
+      aprovacao_status: precisaAprovacao ? ('pendente' as const) : ('aprovado' as const),
+      solicitado_por_nome: precisaAprovacao ? usuario.email : undefined,
     };
 
     if (!dto.parcelas || dto.parcelas < 2) {
@@ -119,6 +130,17 @@ export class FinanceiroService {
   }
 
   async atualizar(tenantId: Types.ObjectId, id: Types.ObjectId, dto: AtualizarLancamentoDto) {
+    if (dto.status === 'pago') {
+      const atual = await this.lancamentoModel.findOne({ _id: id, tenant_id: tenantId });
+      if (!atual) throw new NotFoundException('lancamento nao encontrado');
+      if (atual.aprovacao_status === 'pendente') {
+        throw new BadRequestException('esta despesa ainda esta pendente de aprovacao');
+      }
+      if (atual.aprovacao_status === 'rejeitado') {
+        throw new BadRequestException('esta despesa foi rejeitada e nao pode ser marcada como paga');
+      }
+    }
+
     const set: Record<string, unknown> = { ...dto };
     if (dto.data_vencimento) set.data_vencimento = new Date(dto.data_vencimento);
     if (dto.status === 'pago') set.data_pagamento = new Date();
@@ -126,6 +148,28 @@ export class FinanceiroService {
     const lancamento = await this.lancamentoModel.findOneAndUpdate(
       { _id: id, tenant_id: tenantId },
       { $set: set },
+      { new: true },
+    );
+    if (!lancamento) throw new NotFoundException('lancamento nao encontrado');
+    return lancamento;
+  }
+
+  async aprovar(tenantId: Types.ObjectId, id: Types.ObjectId, usuario: UsuarioAutenticado) {
+    if (!podeAprovarDespesa(usuario)) throw new ForbiddenException('voce nao tem alcada para aprovar despesas');
+    const lancamento = await this.lancamentoModel.findOneAndUpdate(
+      { _id: id, tenant_id: tenantId },
+      { $set: { aprovacao_status: 'aprovado', aprovado_por: new Types.ObjectId(usuario.sub), aprovado_por_nome: usuario.email, aprovado_em: new Date() } },
+      { new: true },
+    );
+    if (!lancamento) throw new NotFoundException('lancamento nao encontrado');
+    return lancamento;
+  }
+
+  async rejeitar(tenantId: Types.ObjectId, id: Types.ObjectId, usuario: UsuarioAutenticado) {
+    if (!podeAprovarDespesa(usuario)) throw new ForbiddenException('voce nao tem alcada para rejeitar despesas');
+    const lancamento = await this.lancamentoModel.findOneAndUpdate(
+      { _id: id, tenant_id: tenantId },
+      { $set: { aprovacao_status: 'rejeitado', aprovado_por: new Types.ObjectId(usuario.sub), aprovado_por_nome: usuario.email, aprovado_em: new Date() } },
       { new: true },
     );
     if (!lancamento) throw new NotFoundException('lancamento nao encontrado');
