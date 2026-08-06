@@ -15,6 +15,7 @@ import {
   Landmark,
   Paperclip,
   Pencil,
+  Presentation,
   Scale,
   ScrollText,
   Search,
@@ -48,6 +49,7 @@ import { TimelineProcesso } from '@/components/processos/TimelineProcesso';
 import HistoricoAmigavel from '@/components/common/HistoricoAmigavel';
 import { BotaoFavorito } from '@/components/common/BotaoFavorito';
 import { useFavoritos } from '@/lib/useFavoritos';
+import { ModoApresentacao } from '@/components/processos/ModoApresentacao';
 import { BotaoExportar } from '@/components/ui/BotaoExportar';
 import { exportarExcel, exportarPdf } from '@/lib/exportar';
 
@@ -321,21 +323,30 @@ const LABEL_HONORARIO: Record<string, string> = {
 function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtualizado: (p: Processo) => void }) {
   const [aba, setAba] = useState<AbaProcesso>('movimentacoes');
   const [editando, setEditando] = useState(false);
+  const [apresentando, setApresentando] = useState(false);
   return (
     <div className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 space-y-6">
       <div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {tituloPartes(processo) && (
-            <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">{tituloPartes(processo)}</p>
-          )}
-          {processo.provisorio && (
-            <span
-              title="Criado a partir de publicações — o DataJud ainda não indexou este processo"
-              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
-            >
-              <AlertCircle size={11} /> Provisório
-            </span>
-          )}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            {tituloPartes(processo) && (
+              <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">{tituloPartes(processo)}</p>
+            )}
+            {processo.provisorio && (
+              <span
+                title="Criado a partir de publicações — o DataJud ainda não indexou este processo"
+                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
+              >
+                <AlertCircle size={11} /> Provisório
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => setApresentando(true)}
+            className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5"
+          >
+            <Presentation size={13} /> Modo apresentação
+          </button>
         </div>
         <p className="font-mono text-sm text-gray-500 dark:text-gray-400 mt-1">{formatarNumeroCnj(processo.numero_cnj)}</p>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{processo.classe ?? 'Classe não identificada'}</p>
@@ -486,6 +497,15 @@ function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtu
           {aba === 'historico' && <HistoricoAmigavel entidade="processo" entidadeId={processo.numero_cnj} />}
         </div>
       </div>
+
+      {apresentando && (
+        <ModoApresentacao
+          processo={processo}
+          titulo={tituloPartes(processo) ?? formatarNumeroCnj(processo.numero_cnj)}
+          numeroFormatado={formatarNumeroCnj(processo.numero_cnj)}
+          onFechar={() => setApresentando(false)}
+        />
+      )}
     </div>
   );
 }
