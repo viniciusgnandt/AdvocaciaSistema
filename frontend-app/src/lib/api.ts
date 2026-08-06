@@ -41,7 +41,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export type PerfilUsuario = 'admin' | 'advogado' | 'assistente';
 
-export type SessaoUsuario = { id: string; nome: string; email: string; perfil: PerfilUsuario; oab?: string };
+export type SessaoUsuario = {
+  id: string;
+  nome: string;
+  email: string;
+  perfil: PerfilUsuario;
+  oab?: string;
+  foto_url?: string;
+};
 export type SessaoTenant = { id: string; nome_escritorio: string; status: string };
 export type Sessao = { token: string; usuario: SessaoUsuario; tenant: SessaoTenant };
 
@@ -86,6 +93,8 @@ export type Usuario = {
   status: 'ativo' | 'inativo' | 'convidado';
   grupo_id?: string;
   time_id?: string;
+  foto_url?: string;
+  especialidades?: string[];
 };
 
 export function listarUsuarios() {
@@ -206,7 +215,7 @@ export function buscarPerfil() {
   return request<Usuario>('/auth/perfil');
 }
 
-export function atualizarPerfil(dto: { nome?: string; oab?: string }) {
+export function atualizarPerfil(dto: { nome?: string; oab?: string; foto_url?: string; especialidades?: string[] }) {
   return request<Usuario>('/auth/perfil', { method: 'PATCH', body: JSON.stringify(dto) });
 }
 

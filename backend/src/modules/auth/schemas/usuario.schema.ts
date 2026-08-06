@@ -38,6 +38,12 @@ export class Usuario extends Document {
 
   @Prop()
   ultimo_login?: Date;
+
+  @Prop()
+  foto_url?: string;
+
+  @Prop({ type: [String], default: [] })
+  especialidades: string[];
 }
 
 export const UsuarioSchema = SchemaFactory.createForClass(Usuario);

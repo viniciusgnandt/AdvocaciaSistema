@@ -14,12 +14,14 @@ import {
   excluirTime,
   LABEL_PERMISSAO,
   listarGrupos,
+  listarTarefas,
   listarTimes,
   listarUsuarios,
   removerUsuario,
   type Grupo,
   type PerfilUsuario,
   type PermissaoChave,
+  type Tarefa,
   type TimeTrabalho,
   type Usuario,
 } from '@/lib/api';
@@ -64,6 +66,7 @@ function UsuariosLista() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [times, setTimes] = useState<TimeTrabalho[]>([]);
+  const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -71,16 +74,20 @@ function UsuariosLista() {
   const carregar = useCallback(async () => {
     setLoading(true);
     try {
-      const [u, g, t] = await Promise.all([listarUsuarios(), listarGrupos(), listarTimes()]);
+      const [u, g, t, tf] = await Promise.all([listarUsuarios(), listarGrupos(), listarTimes(), listarTarefas()]);
       setUsuarios(u);
       setGrupos(g);
       setTimes(t);
+      setTarefas(tf);
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'erro ao carregar equipe');
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const cargaTrabalho = (usuarioId: string) =>
+    tarefas.filter((t) => t.responsavel_id === usuarioId && t.status !== 'concluida').length;
 
   useEffect(() => {
     carregar();
@@ -155,6 +162,7 @@ function UsuariosLista() {
                 <th className="px-4 py-3 font-medium">Perfil</th>
                 <th className="px-4 py-3 font-medium">Grupo</th>
                 <th className="px-4 py-3 font-medium">Time</th>
+                <th className="px-4 py-3 font-medium">Carga</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -164,12 +172,20 @@ function UsuariosLista() {
                 <tr key={u._id} className="border-b border-gray-50 dark:border-gray-800/50 last:border-0">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-brand-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                        {u.nome.charAt(0).toUpperCase()}
-                      </div>
+                      {u.foto_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={u.foto_url} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-brand-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                          {u.nome.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                       <div className="min-w-0">
                         <p className="text-gray-800 dark:text-gray-200 truncate">{u.nome}</p>
                         <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                        {u.especialidades && u.especialidades.length > 0 && (
+                          <p className="text-xs text-gray-400 truncate">{u.especialidades.join(', ')}</p>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -213,6 +229,11 @@ function UsuariosLista() {
                         </option>
                       ))}
                     </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {cargaTrabalho(u._id)} {cargaTrabalho(u._id) === 1 ? 'tarefa' : 'tarefas'}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <span

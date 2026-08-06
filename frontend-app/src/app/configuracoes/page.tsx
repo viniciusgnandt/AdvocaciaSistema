@@ -12,6 +12,7 @@ import {
   Sun,
   UserCircle,
   Users as UsersIcon,
+  X,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/Topbar';
 import { EquipeAba } from '@/components/configuracoes/EquipeAba';
@@ -20,6 +21,7 @@ import {
   alterarSenha,
   atualizarPerfil,
   atualizarTenant,
+  buscarPerfil,
   buscarTenant,
   exportarMeusDados,
   salvarSessao,
@@ -102,9 +104,25 @@ function ContaSecao() {
   const sessao = usuarioLogado();
   const [nome, setNome] = useState(sessao?.nome ?? '');
   const [oab, setOab] = useState(sessao?.oab ?? '');
+  const [fotoUrl, setFotoUrl] = useState(sessao?.foto_url ?? '');
+  const [especialidades, setEspecialidades] = useState<string[]>([]);
+  const [novaEspecialidade, setNovaEspecialidade] = useState('');
   const [salvandoPerfil, setSalvandoPerfil] = useState(false);
   const [okPerfil, setOkPerfil] = useState(false);
   const [erroPerfil, setErroPerfil] = useState<string | null>(null);
+
+  useEffect(() => {
+    buscarPerfil()
+      .then((u) => setEspecialidades(u.especialidades ?? []))
+      .catch(() => undefined);
+  }, []);
+
+  const adicionarEspecialidade = () => {
+    const valor = novaEspecialidade.trim();
+    if (!valor || especialidades.includes(valor)) return;
+    setEspecialidades([...especialidades, valor]);
+    setNovaEspecialidade('');
+  };
 
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
@@ -117,11 +135,11 @@ function ContaSecao() {
     setErroPerfil(null);
     setOkPerfil(false);
     try {
-      await atualizarPerfil({ nome, oab: oab || undefined });
+      await atualizarPerfil({ nome, oab: oab || undefined, foto_url: fotoUrl || undefined, especialidades });
       const tenant = tenantLogado();
       const token = localStorage.getItem('trilva_token');
       if (tenant && token) {
-        salvarSessao({ token, usuario: { ...(sessao!), nome, oab }, tenant });
+        salvarSessao({ token, usuario: { ...(sessao!), nome, oab, foto_url: fotoUrl || undefined }, tenant });
       }
       setOkPerfil(true);
       setTimeout(() => setOkPerfil(false), 2500);
@@ -157,6 +175,26 @@ function ContaSecao() {
     <div className="space-y-5">
       <Cartao titulo="Perfil">
         <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            {fotoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={fotoUrl} alt="" className="w-14 h-14 rounded-full object-cover shrink-0 border border-gray-100 dark:border-gray-800" />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-brand-600 flex items-center justify-center text-white text-lg font-bold shrink-0">
+                {nome.charAt(0).toUpperCase() || '—'}
+              </div>
+            )}
+            <label className="block flex-1">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">URL da foto</span>
+              <input
+                value={fotoUrl}
+                onChange={(e) => setFotoUrl(e.target.value)}
+                placeholder="https://…"
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+              />
+            </label>
+          </div>
+
           <label className="block">
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Nome</span>
             <input
@@ -187,6 +225,46 @@ function ContaSecao() {
           <p className="text-xs text-gray-400">
             Perfil: <span className="font-medium text-gray-600 dark:text-gray-300">{sessao ? LABEL_PERFIL[sessao.perfil] : ''}</span>
           </p>
+
+          <label className="block">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Especialidades</span>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {especialidades.map((esp) => (
+                <span
+                  key={esp}
+                  className="flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                >
+                  {esp}
+                  <button
+                    onClick={() => setEspecialidades(especialidades.filter((e) => e !== esp))}
+                    className="text-gray-400 hover:text-red-500"
+                  >
+                    <X size={11} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={novaEspecialidade}
+                onChange={(e) => setNovaEspecialidade(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    adicionarEspecialidade();
+                  }
+                }}
+                placeholder="Ex.: Direito Trabalhista"
+                className="flex-1 text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+              />
+              <button
+                onClick={adicionarEspecialidade}
+                className="text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                Adicionar
+              </button>
+            </div>
+          </label>
 
           {erroPerfil && <p className="text-xs text-red-600 dark:text-red-400">{erroPerfil}</p>}
 

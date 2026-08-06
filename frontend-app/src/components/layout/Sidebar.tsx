@@ -58,7 +58,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
 
     buscarPerfil()
       .then((u) => {
-        const atualizado = { id: u._id, nome: u.nome, email: u.email, perfil: u.perfil, oab: u.oab };
+        const atualizado = { id: u._id, nome: u.nome, email: u.email, perfil: u.perfil, oab: u.oab, foto_url: u.foto_url };
         setUsuario(atualizado);
         localStorage.setItem('trilva_usuario', JSON.stringify(atualizado));
       })
@@ -145,9 +145,14 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
         </Link>
 
         <div className="flex items-center gap-3 px-3 py-2 rounded-lg">
-          <div className="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-            {iniciais ?? '—'}
-          </div>
+          {usuario?.foto_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={usuario.foto_url} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+              {iniciais ?? '—'}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{usuario?.nome ?? 'Visitante'}</p>
             <p className="text-xs text-gray-400 dark:text-gray-500 truncate">

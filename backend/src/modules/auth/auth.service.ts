@@ -113,7 +113,7 @@ export class AuthService {
     return usuario;
   }
 
-  async atualizarPerfil(usuarioId: Types.ObjectId, dto: { nome?: string; oab?: string }) {
+  async atualizarPerfil(usuarioId: Types.ObjectId, dto: { nome?: string; oab?: string; foto_url?: string; especialidades?: string[] }) {
     const usuario = await this.usuarioModel.findByIdAndUpdate(usuarioId, { $set: dto }, { new: true });
     if (!usuario) throw new NotFoundException('usuario nao encontrado');
     return usuario;
