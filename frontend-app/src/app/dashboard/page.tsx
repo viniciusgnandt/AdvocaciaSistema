@@ -9,7 +9,9 @@ import {
   CheckSquare,
   Gavel,
   Landmark,
+  TrendingUp,
   Users,
+  X,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/Topbar';
 import { StatCard } from '@/components/ui/StatCard';
@@ -17,15 +19,97 @@ import {
   buscarAgenda,
   buscarResumo,
   listarClientes,
+  listarLancamentos,
   listarProcessos,
   listarTarefas,
   usuarioLogado,
   type AgendaEvento,
+  type Lancamento,
   type Processo,
   type ResumoPublicacoes,
   type Tarefa,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
+
+function formatarMoeda(valor: number) {
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function chaveSemanaAtual() {
+  const hoje = new Date();
+  const inicioAno = new Date(hoje.getFullYear(), 0, 1);
+  const semana = Math.ceil(((hoje.getTime() - inicioAno.getTime()) / 86_400_000 + inicioAno.getDay() + 1) / 7);
+  return `${hoje.getFullYear()}-W${semana}`;
+}
+
+function ResumoSemanal({ tarefas, lancamentos }: { tarefas: Tarefa[]; lancamentos: Lancamento[] }) {
+  const [visivel, setVisivel] = useState(false);
+  const chave = chaveSemanaAtual();
+
+  useEffect(() => {
+    const visto = localStorage.getItem('trilva_resumo_semana_visto');
+    setVisivel(visto !== chave);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fechar = () => {
+    localStorage.setItem('trilva_resumo_semana_visto', chave);
+    setVisivel(false);
+  };
+
+  const seteDiasAtras = new Date();
+  seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
+
+  const concluidas = tarefas.filter((t) => t.status === 'concluida' && t.concluida_em && new Date(t.concluida_em) >= seteDiasAtras).length;
+  const perdidas = tarefas.filter((t) => t.status === 'atrasada' && new Date(t.data_vencimento) >= seteDiasAtras && new Date(t.data_vencimento) <= new Date()).length;
+  const vencendoSemana = tarefas.filter((t) => t.status !== 'concluida' && new Date(t.data_vencimento) >= new Date() && new Date(t.data_vencimento) <= new Date(Date.now() + 7 * 86_400_000)).length;
+
+  const naoCancelados = lancamentos.filter((l) => l.status !== 'cancelado');
+  const recebido = naoCancelados
+    .filter((l) => l.tipo === 'receita' && l.status === 'pago' && new Date(l.data_vencimento) >= seteDiasAtras)
+    .reduce((acc, l) => acc + l.valor, 0);
+  const pago = naoCancelados
+    .filter((l) => l.tipo === 'despesa' && l.status === 'pago' && new Date(l.data_vencimento) >= seteDiasAtras)
+    .reduce((acc, l) => acc + l.valor, 0);
+
+  if (!visivel) return null;
+
+  return (
+    <div className="rounded-xl border border-brand-200 dark:border-brand-900 bg-brand-50/60 dark:bg-brand-900/10 px-5 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+          <TrendingUp size={14} className="text-brand-600 dark:text-brand-400" /> Resumo dos últimos 7 dias
+        </p>
+        <button onClick={fechar} className="p-1 rounded text-gray-400 hover:bg-white/60 dark:hover:bg-gray-800">
+          <X size={14} />
+        </button>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 text-sm">
+        <div>
+          <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{concluidas}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Tarefas concluídas</p>
+        </div>
+        <div>
+          <p className={cn('text-lg font-semibold', perdidas > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100')}>{perdidas}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Prazos perdidos</p>
+        </div>
+        <div>
+          <p className="text-lg font-semibold text-green-600 dark:text-green-400">{formatarMoeda(recebido)}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Recebido</p>
+        </div>
+        <div>
+          <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{formatarMoeda(pago)}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Pago</p>
+        </div>
+      </div>
+      {vencendoSemana > 0 && (
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+          De olho: {vencendoSemana} tarefa{vencendoSemana > 1 ? 's' : ''} vencendo nos próximos 7 dias.
+        </p>
+      )}
+    </div>
+  );
+}
 
 const PRIORIDADE_COR: Record<string, string> = {
   baixa: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300',
@@ -41,6 +125,7 @@ export default function DashboardPage() {
   const [processosComAudiencia, setProcessosComAudiencia] = useState<Processo[]>([]);
   const [totalClientes, setTotalClientes] = useState(0);
   const [eventos, setEventos] = useState<AgendaEvento[]>([]);
+  const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -53,26 +138,29 @@ export default function DashboardPage() {
 
     Promise.all([
       buscarResumo(),
-      listarTarefas({ status: 'pendente' }),
+      listarTarefas({}),
       listarProcessos({ status: 'ativo' }),
       listarProcessos({ status: 'ativo_audiencia_agendada', ordenacao: 'audiencia' }),
       listarClientes(),
       buscarAgenda(paraISODate(hoje), paraISODate(daqui14)),
+      listarLancamentos({}),
     ])
-      .then(([r, t, pAtivos, pAudiencia, c, a]) => {
+      .then(([r, t, pAtivos, pAudiencia, c, a, l]) => {
         setResumo(r);
         setTarefas(t);
         setTotalProcessosAtivos(pAtivos.itens.length);
         setProcessosComAudiencia(pAudiencia.itens);
         setTotalClientes(c.length);
         setEventos(a.eventos);
+        setLancamentos(l);
       })
       .catch((err) => setErro(err instanceof Error ? err.message : 'erro ao carregar dashboard'))
       .finally(() => setLoading(false));
   }, []);
 
   const tarefasAtrasadas = tarefas.filter((t) => t.status === 'atrasada').length;
-  const proximasTarefas = [...tarefas]
+  const proximasTarefas = tarefas
+    .filter((t) => t.status === 'pendente' || t.status === 'em_andamento' || t.status === 'atrasada')
     .sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())
     .slice(0, 5);
   const proximasAudiencias = processosComAudiencia.slice(0, 5);
@@ -88,6 +176,8 @@ export default function DashboardPage() {
             {erro}
           </div>
         )}
+
+        {!loading && <ResumoSemanal tarefas={tarefas} lancamentos={lancamentos} />}
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <StatCard icon={Bell} label="Publicações não lidas" value={loading ? '—' : (resumo?.naoLidas ?? 0)} tone="brand" />
