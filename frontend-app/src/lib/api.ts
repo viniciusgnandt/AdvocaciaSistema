@@ -476,6 +476,8 @@ export type DocumentoProcesso = {
   created_at: string;
   data_validade?: string;
   numero_processo?: string;
+  versao: number;
+  documento_original_id?: string;
 };
 
 /** Escopo de arquivos: um processo OU um cliente (documentos do cliente nascem antes
@@ -874,6 +876,23 @@ export async function baixarDocumento(id: string): Promise<{ url: string; nome: 
 
 export function excluirDocumento(id: string) {
   return request<{ ok: boolean }>(`/documentos/${id}`, { method: 'DELETE' });
+}
+
+export async function enviarNovaVersaoDocumento(id: string, arquivo: File): Promise<DocumentoProcesso> {
+  const form = new FormData();
+  form.append('arquivo', arquivo);
+  const token = getToken();
+  const res = await fetch(`${API_URL}/documentos/${id}/nova-versao`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: form,
+  });
+  if (!res.ok) throw new Error(`Falha no upload (${res.status})`);
+  return res.json();
+}
+
+export function listarVersoesDocumento(id: string) {
+  return request<DocumentoProcesso[]>(`/documentos/${id}/versoes`);
 }
 
 export function buscarPublicacao(id: string) {

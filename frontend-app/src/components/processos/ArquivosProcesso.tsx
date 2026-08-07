@@ -1,16 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CalendarClock, ChevronRight, Download, File, FolderOpen, FolderPlus, Home, Mail, Paperclip, Plus, Trash2, X } from 'lucide-react';
+import { CalendarClock, ChevronRight, Download, File, FolderOpen, FolderPlus, History, Home, Mail, Paperclip, Plus, Trash2, UploadCloud, X } from 'lucide-react';
 import {
   atualizarValidadeDocumento,
   baixarDocumento,
   criarPasta,
   enviarDocumento,
+  enviarNovaVersaoDocumento,
   excluirDocumento,
   excluirPasta,
   listarDocumentos,
   listarPastas,
+  listarVersoesDocumento,
   type DocumentoProcesso,
   type EscopoArquivos,
   type Pasta,
@@ -31,7 +33,10 @@ export function ArquivosProcesso({ escopo }: { escopo: EscopoArquivos }) {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [modalNovaPasta, setModalNovaPasta] = useState(false);
+  const [documentoVersoes, setDocumentoVersoes] = useState<DocumentoProcesso | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputVersaoRef = useRef<HTMLInputElement>(null);
+  const documentoAlvoVersao = useRef<DocumentoProcesso | null>(null);
 
   const pastaAtual = caminho[caminho.length - 1];
   const chaveEscopo = escopo.numeroProcesso ?? escopo.clienteId;
@@ -107,6 +112,23 @@ export function ArquivosProcesso({ escopo }: { escopo: EscopoArquivos }) {
       await excluirDocumento(documento._id);
     } catch {
       carregar();
+    }
+  };
+
+  const handleEnviarNovaVersao = async (arquivosSelecionados: FileList | null) => {
+    const arquivo = arquivosSelecionados?.[0];
+    const alvo = documentoAlvoVersao.current;
+    if (!arquivo || !alvo) return;
+    setEnviando(true);
+    setErro(null);
+    try {
+      await enviarNovaVersaoDocumento(alvo._id, arquivo);
+      await carregar();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'erro ao enviar nova versão');
+    } finally {
+      setEnviando(false);
+      if (inputVersaoRef.current) inputVersaoRef.current.value = '';
     }
   };
 
@@ -221,7 +243,26 @@ export function ArquivosProcesso({ escopo }: { escopo: EscopoArquivos }) {
                   validade {new Date(`${d.data_validade}T00:00:00`).toLocaleDateString('pt-BR')}
                 </span>
               )}
+              {d.versao > 1 && (
+                <button
+                  onClick={() => setDocumentoVersoes(d)}
+                  className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 shrink-0 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  title="Ver versões anteriores"
+                >
+                  v{d.versao}
+                </button>
+              )}
               <span className="text-xs text-gray-400 shrink-0">{formatarTamanho(d.tamanho_bytes)}</span>
+              <button
+                onClick={() => {
+                  documentoAlvoVersao.current = d;
+                  inputVersaoRef.current?.click();
+                }}
+                className="p-1 rounded text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 shrink-0"
+                title="Enviar nova versão"
+              >
+                <UploadCloud size={14} />
+              </button>
               <button
                 onClick={() => handleDefinirValidade(d)}
                 className="p-1 rounded text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 shrink-0"
@@ -248,9 +289,80 @@ export function ArquivosProcesso({ escopo }: { escopo: EscopoArquivos }) {
         </ul>
       )}
 
+      <input
+        ref={inputVersaoRef}
+        type="file"
+        className="hidden"
+        onChange={(e) => handleEnviarNovaVersao(e.target.files)}
+      />
+
       {modalNovaPasta && (
         <NovaPastaModal onFechar={() => setModalNovaPasta(false)} onCriar={handleCriarPasta} />
       )}
+
+      {documentoVersoes && (
+        <VersoesModal documento={documentoVersoes} onFechar={() => setDocumentoVersoes(null)} />
+      )}
+    </div>
+  );
+}
+
+function VersoesModal({ documento, onFechar }: { documento: DocumentoProcesso; onFechar: () => void }) {
+  const [versoes, setVersoes] = useState<DocumentoProcesso[] | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    listarVersoesDocumento(documento._id)
+      .then(setVersoes)
+      .catch((err) => setErro(err instanceof Error ? err.message : 'erro ao carregar versões'));
+  }, [documento._id]);
+
+  const handleDownload = async (d: DocumentoProcesso) => {
+    const { url } = await baixarDocumento(d._id);
+    window.open(url, '_blank', 'noopener');
+  };
+
+  return (
+    <div onClick={onFechar} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-2xl animate-scale-in max-h-[80vh] flex flex-col"
+      >
+        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-5 py-3.5 shrink-0">
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <History size={15} className="text-brand-500" /> Versões — {documento.nome}
+          </p>
+          <button onClick={onFechar} className="p-1 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 overflow-y-auto space-y-2">
+          {erro && <p className="text-xs text-red-600 dark:text-red-400">{erro}</p>}
+          {!versoes ? (
+            <p className="text-sm text-gray-400">Carregando…</p>
+          ) : (
+            versoes.map((v) => (
+              <div key={v._id} className="flex items-center gap-2.5 rounded-lg border border-gray-100 dark:border-gray-800 px-3 py-2 text-sm">
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 shrink-0">
+                  v{v.versao}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-gray-700 dark:text-gray-300">{v.nome}</p>
+                  <p className="text-xs text-gray-400">{new Date(v.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                </div>
+                <button
+                  onClick={() => handleDownload(v)}
+                  className="p-1 rounded text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 shrink-0"
+                  title="Baixar"
+                >
+                  <Download size={14} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }

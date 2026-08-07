@@ -48,6 +48,15 @@ export class Documento extends Document {
   // documento vencendo no sino de notificacoes
   @Prop()
   data_validade?: string;
+
+  // versionamento: documento_original_id aponta pro _id da 1a versao enviada (ausente
+  // nela mesma) - todos os documentos com o mesmo documento_original_id (+ ele proprio)
+  // formam o historico de versoes de um mesmo arquivo logico.
+  @Prop({ type: Types.ObjectId, index: true })
+  documento_original_id?: Types.ObjectId;
+
+  @Prop({ default: 1 })
+  versao: number;
 }
 
 export const DocumentoSchema = SchemaFactory.createForClass(Documento);

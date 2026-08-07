@@ -88,7 +88,17 @@ export class DocumentosController {
     if (pastaId !== undefined) {
       filtro.pasta_id = pastaId ? new Types.ObjectId(pastaId) : { $exists: false };
     }
-    return this.documentoModel.find(filtro).sort({ created_at: -1 }).exec();
+    const todos = await this.documentoModel.find(filtro).sort({ created_at: -1 }).exec();
+
+    // a lista principal mostra so a versao mais recente de cada arquivo - versoes
+    // antigas ficam disponiveis via GET /documentos/:id/versoes, nao poluem a listagem
+    const maisRecentePorChave = new Map<string, Documento>();
+    for (const doc of todos) {
+      const chave = String(doc.documento_original_id ?? doc._id);
+      const atual = maisRecentePorChave.get(chave);
+      if (!atual || doc.versao > atual.versao) maisRecentePorChave.set(chave, doc);
+    }
+    return todos.filter((doc) => maisRecentePorChave.get(String(doc.documento_original_id ?? doc._id)) === doc);
   }
 
   @Patch(':id')
@@ -117,6 +127,63 @@ export class DocumentosController {
       .find({ tenant_id: new Types.ObjectId(tenantId), data_validade: { $exists: true, $ne: null, $lte: limite } })
       .sort({ data_validade: 1 })
       .limit(20)
+      .exec();
+  }
+
+  @Post(':id/nova-versao')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Envia uma nova versao de um documento existente, preservando as anteriores' })
+  @UseInterceptors(
+    FileInterceptor('arquivo', { storage: memoryStorage(), limits: { fileSize: LIMITE_TAMANHO_BYTES } }),
+  )
+  async novaVersao(
+    @Headers('x-tenant-id') tenantId: string,
+    @Param('id') id: string,
+    @UploadedFile() arquivo: Express.Multer.File,
+  ) {
+    if (!arquivo) return { erro: 'nenhum arquivo enviado (campo "arquivo" no multipart/form-data)' };
+
+    const anterior = await this.documentoModel.findOne({ _id: new Types.ObjectId(id), tenant_id: new Types.ObjectId(tenantId) });
+    if (!anterior) return { erro: 'documento nao encontrado' };
+
+    const originalId = anterior.documento_original_id ?? (anterior._id as Types.ObjectId);
+    const versoes = await this.documentoModel
+      .find({ tenant_id: new Types.ObjectId(tenantId), $or: [{ _id: originalId }, { documento_original_id: originalId }] })
+      .sort({ versao: -1 })
+      .limit(1)
+      .exec();
+    const proximaVersao = (versoes[0]?.versao ?? 1) + 1;
+
+    const chave = this.storage.montarChave(tenantId, arquivo.originalname);
+    await this.storage.upload(chave, arquivo.buffer, arquivo.mimetype);
+
+    return this.documentoModel.create({
+      tenant_id: new Types.ObjectId(tenantId),
+      processo_id: anterior.processo_id,
+      numero_processo: anterior.numero_processo,
+      cliente_id: anterior.cliente_id,
+      movimentacao_chave: anterior.movimentacao_chave,
+      pasta_id: anterior.pasta_id,
+      nome: arquivo.originalname,
+      tipo: anterior.tipo,
+      storage_key: chave,
+      mime: arquivo.mimetype,
+      tamanho_bytes: arquivo.size,
+      documento_original_id: originalId,
+      versao: proximaVersao,
+    });
+  }
+
+  @Get(':id/versoes')
+  @ApiOperation({ summary: 'Lista todas as versoes de um documento (mais recente primeiro)' })
+  async versoes(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string) {
+    const doc = await this.documentoModel.findOne({ _id: new Types.ObjectId(id), tenant_id: new Types.ObjectId(tenantId) });
+    if (!doc) return { erro: 'documento nao encontrado' };
+
+    const originalId = doc.documento_original_id ?? (doc._id as Types.ObjectId);
+    return this.documentoModel
+      .find({ tenant_id: new Types.ObjectId(tenantId), $or: [{ _id: originalId }, { documento_original_id: originalId }] })
+      .sort({ versao: -1 })
       .exec();
   }
 
