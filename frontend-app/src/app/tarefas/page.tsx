@@ -33,6 +33,7 @@ import {
   type Usuario,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { mascararCnjDigitando, validarCnj } from '@/lib/cnj';
 
 const STATUS_LABEL: Record<string, string> = {
   pendente: 'Pendente',
@@ -548,11 +549,14 @@ function TarefaModal({
               <Landmark size={11} /> Número do processo (opcional)
             </span>
             <input
-              value={form.numero_processo}
-              onChange={(e) => setForm({ ...form, numero_processo: e.target.value })}
-              placeholder="Número CNJ"
+              value={mascararCnjDigitando(form.numero_processo)}
+              onChange={(e) => setForm({ ...form, numero_processo: e.target.value.replace(/\D/g, '') })}
+              placeholder="0000000-00.0000.0.00.0000"
               className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100 font-mono"
             />
+            {validarCnj(form.numero_processo) === false && (
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1">Número CNJ inválido — confira os dígitos.</p>
+            )}
           </label>
 
           <label className="block">

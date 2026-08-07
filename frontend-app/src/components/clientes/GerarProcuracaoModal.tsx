@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { FileSignature, X } from 'lucide-react';
 import { listarUsuarios, type Cliente, type Usuario } from '@/lib/api';
 import { gerarProcuracaoPdf } from '@/lib/procuracao';
+import { mascararCnjDigitando, validarCnj } from '@/lib/cnj';
 
 export function GerarProcuracaoModal({
   cliente,
@@ -120,11 +121,14 @@ export function GerarProcuracaoModal({
                 </select>
               ) : (
                 <input
-                  value={numeroCnj}
-                  onChange={(e) => setNumeroCnj(e.target.value)}
-                  placeholder="Número CNJ"
+                  value={mascararCnjDigitando(numeroCnj)}
+                  onChange={(e) => setNumeroCnj(e.target.value.replace(/\D/g, ''))}
+                  placeholder="0000000-00.0000.0.00.0000"
                   className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100 font-mono"
                 />
+              )}
+              {validarCnj(numeroCnj) === false && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">Número CNJ inválido — confira os dígitos.</p>
               )}
             </label>
           )}

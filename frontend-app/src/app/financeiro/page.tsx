@@ -23,6 +23,7 @@ import {
   type TipoLancamento,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { mascararCnjDigitando, validarCnj } from '@/lib/cnj';
 import { paraNumero } from '@/lib/moeda';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -533,11 +534,14 @@ function NovoLancamentoModal({ onFechar, onCriado }: { onFechar: () => void; onC
             <label className="block">
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">Processo (opcional)</span>
               <input
-                value={form.numero_processo}
-                onChange={(e) => setForm({ ...form, numero_processo: e.target.value })}
-                placeholder="Número CNJ"
+                value={mascararCnjDigitando(form.numero_processo)}
+                onChange={(e) => setForm({ ...form, numero_processo: e.target.value.replace(/\D/g, '') })}
+                placeholder="0000000-00.0000.0.00.0000"
                 className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100 font-mono"
               />
+              {validarCnj(form.numero_processo) === false && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">Número CNJ inválido — confira os dígitos.</p>
+              )}
             </label>
           </div>
 
