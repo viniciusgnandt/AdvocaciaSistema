@@ -12,10 +12,20 @@ import { IaUso } from './schemas/ia-uso.schema';
 
 const LIMITE_MODELO_CARACTERES = 20000; // evita prompts gigantes com modelos muito longos
 const LIMITE_MENSAL_PADRAO = Number(process.env.IA_LIMITE_MENSAL ?? 300);
+const LIMITE_POR_MINUTO_USUARIO = Number(process.env.IA_LIMITE_POR_MINUTO ?? 10);
 
 const DOMINIOS_JURISPRUDENCIA = ['stj.jus.br', 'stf.jus.br', 'jusbrasil.com.br', 'trt2.jus.br', 'tjsp.jus.br', 'cnj.jus.br'];
 
+const INSTRUCAO_JURISPRUDENCIA_FALLBACK =
+  ' Se a busca nao retornar jurisprudencia realmente relevante ao caso, diga isso claramente ' +
+  '("nao foram encontrados precedentes diretamente aplicaveis") em vez de citar algo generico ou forcado.';
+
 type HistoricoItem = { role: 'user' | 'assistant'; texto: string };
+
+/** Janela deslizante em memoria (por instancia do processo) para limitar chamadas
+ * por usuario por minuto - complementa a cota mensal por tenant, que sozinha nao
+ * impede um usuario de esgotar o limite do escritorio em poucos minutos. */
+const chamadasPorUsuario = new Map<string, number[]>();
 
 @Injectable()
 export class IaService {
@@ -30,9 +40,26 @@ export class IaService {
     this.client = new Anthropic();
   }
 
+  /** Limite por usuario por minuto - impede que um bug de loop no frontend ou um
+   * uso abusivo estoure a cota mensal inteira do escritorio em poucos minutos. */
+  private verificarLimitePorMinuto(usuarioId: string): void {
+    const agora = Date.now();
+    const janela = 60_000;
+    const chamadas = (chamadasPorUsuario.get(usuarioId) ?? []).filter((t) => agora - t < janela);
+    if (chamadas.length >= LIMITE_POR_MINUTO_USUARIO) {
+      throw new ForbiddenException(
+        `Muitas chamadas de IA em pouco tempo (limite: ${LIMITE_POR_MINUTO_USUARIO}/minuto). Aguarde um instante.`,
+      );
+    }
+    chamadas.push(agora);
+    chamadasPorUsuario.set(usuarioId, chamadas);
+  }
+
   /** Cota mensal simples por tenant - evita custo descontrolado de API. Incrementa
    * antes de cada chamada e recusa quando o limite do mes ja foi atingido. */
-  private async verificarEContarUso(tenantId: string): Promise<void> {
+  private async verificarEContarUso(tenantId: string, usuarioId?: string): Promise<void> {
+    if (usuarioId) this.verificarLimitePorMinuto(usuarioId);
+
     const anoMes = new Date().toISOString().slice(0, 7);
     const uso = await this.usoModel.findOneAndUpdate(
       { tenant_id: new Types.ObjectId(tenantId), ano_mes: anoMes },
@@ -44,6 +71,13 @@ export class IaService {
         `Limite mensal de ${LIMITE_MENSAL_PADRAO} chamadas de IA atingido para este escritorio. Fale com o suporte para aumentar a cota.`,
       );
     }
+  }
+
+  /** Uso do mes atual, para exibir "X/limite" nas Configurações. */
+  async obterUsoMes(tenantId: string): Promise<{ contagem: number; limite: number }> {
+    const anoMes = new Date().toISOString().slice(0, 7);
+    const uso = await this.usoModel.findOne({ tenant_id: new Types.ObjectId(tenantId), ano_mes: anoMes });
+    return { contagem: uso?.contagem ?? 0, limite: LIMITE_MENSAL_PADRAO };
   }
 
   private async contextoProcesso(tenantId: string, processoId?: string): Promise<{ texto: string; processo?: Processo }> {
@@ -88,14 +122,49 @@ export class IaService {
     return { texto, processo };
   }
 
-  private async contextoCliente(tenantId: string, clienteId?: string): Promise<string> {
-    if (!clienteId) return '';
+  private async contextoCliente(tenantId: string, clienteId?: string): Promise<{ texto: string; cliente?: Cliente }> {
+    if (!clienteId) return { texto: '' };
     const cliente = await this.clienteModel.findOne({
       _id: new Types.ObjectId(clienteId),
       tenant_id: new Types.ObjectId(tenantId),
     });
     if (!cliente) throw new NotFoundException('cliente nao encontrado');
-    return `Cliente: ${cliente.nome}`;
+
+    const endereco = cliente.endereco
+      ? [cliente.endereco.logradouro, cliente.endereco.numero, cliente.endereco.bairro, cliente.endereco.cidade, cliente.endereco.uf]
+          .filter(Boolean)
+          .join(', ')
+      : null;
+
+    const texto = [
+      `Cliente: ${cliente.nome} (${cliente.tipo === 'pj' ? 'pessoa juridica' : 'pessoa fisica'})`,
+      cliente.cpf ? `CPF: ${cliente.cpf}` : null,
+      cliente.cnpj ? `CNPJ: ${cliente.cnpj}` : null,
+      cliente.razao_social ? `Razao social: ${cliente.razao_social}` : null,
+      cliente.profissao ? `Profissao: ${cliente.profissao}` : null,
+      cliente.estado_civil ? `Estado civil: ${cliente.estado_civil}` : null,
+      endereco ? `Endereco: ${endereco}` : null,
+      cliente.email ? `E-mail: ${cliente.email}` : null,
+      cliente.telefone ? `Telefone: ${cliente.telefone}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    return { texto, cliente };
+  }
+
+  /** Processos ativos do cliente, para dar contexto extra ao resumo e a geracao de
+   * documentos quando nao ha um processo especifico selecionado. */
+  private async processosDoCliente(tenantId: string, clienteId: string): Promise<string> {
+    const processos = await this.processoModel
+      .find({
+        tenant_id: new Types.ObjectId(tenantId),
+        $or: [{ cliente_id: new Types.ObjectId(clienteId) }, { clientes_adicionais: new Types.ObjectId(clienteId) }],
+      })
+      .select('numero_cnj classe status')
+      .limit(20);
+    if (!processos.length) return '';
+    return `Processos vinculados: ${processos.map((p) => `${p.numero_cnj} (${p.classe ?? 'classe nao identificada'}, ${p.status})`).join(' | ')}`;
   }
 
   /** Extrai o texto de um arquivo (.docx, .pdf ou .txt) para uso como modelo de
@@ -143,16 +212,19 @@ export class IaService {
       cliente_id?: string;
       modelo_texto?: string;
       buscar_jurisprudencia?: boolean;
+      mensagem_cliente?: string;
     },
+    usuarioId?: string,
   ): Promise<{ texto: string }> {
-    await this.verificarEContarUso(tenantId);
+    await this.verificarEContarUso(tenantId, usuarioId);
 
-    const [{ texto: contextoProcesso }, contextoCliente] = await Promise.all([
+    const [{ texto: contextoProcesso }, { texto: contextoCliente }, contextoProcessosCliente] = await Promise.all([
       this.contextoProcesso(tenantId, dados.processo_id),
       this.contextoCliente(tenantId, dados.cliente_id),
+      dados.cliente_id && !dados.processo_id ? this.processosDoCliente(tenantId, dados.cliente_id) : Promise.resolve(''),
     ]);
 
-    const contexto = [contextoCliente, contextoProcesso].filter(Boolean).join('\n\n');
+    const contexto = [contextoCliente, contextoProcessosCliente, contextoProcesso].filter(Boolean).join('\n\n');
 
     const instrucaoBase =
       'Voce e um assistente juridico especializado em redigir minutas de peticoes e documentos ' +
@@ -162,11 +234,14 @@ export class IaService {
       'voce fez, sem markdown, sem disclaimers. Use [placeholders entre colchetes] para qualquer ' +
       'dado que voce nao tenha e que precise ser preenchido manualmente. Quando um modelo de ' +
       'referencia for fornecido, siga a mesma estrutura, secoes e tom do modelo, adaptando o ' +
-      'conteudo para o caso descrito - nao copie dados do modelo que nao se apliquem ao caso atual.';
+      'conteudo para o caso descrito - nao copie dados do modelo que nao se apliquem ao caso atual. ' +
+      'Quando o contexto do cliente incluir CPF/CNPJ e endereco, use esses dados na qualificacao das ' +
+      'partes se o documento exigir (ex.: peticao inicial).';
 
     const resposta = await this.client.messages.create({
       model: 'claude-sonnet-5',
       max_tokens: 4096,
+      thinking: { type: 'disabled' },
       system: [
         { type: 'text', text: instrucaoBase, cache_control: { type: 'ephemeral' } },
         ...(dados.buscar_jurisprudencia
@@ -175,7 +250,8 @@ export class IaService {
                 type: 'text' as const,
                 text:
                   'Utilize a busca na web para localizar jurisprudencia real e atual (STJ, STF, TRTs, TJs) ' +
-                  'que sustente os argumentos, citando o tribunal, numero do processo/tema e a tese resumida.',
+                  'que sustente os argumentos, citando o tribunal, numero do processo/tema e a tese resumida.' +
+                  INSTRUCAO_JURISPRUDENCIA_FALLBACK,
               },
             ]
           : []),
@@ -188,6 +264,9 @@ export class IaService {
             `Redija um(a) "${dados.tipo_documento}".`,
             contexto ? `\nContexto do caso:\n${contexto}` : '',
             dados.modelo_texto ? `\nModelo de referencia (siga a estrutura/estilo, adapte o conteudo):\n${dados.modelo_texto}` : '',
+            dados.mensagem_cliente
+              ? `\nMensagem recebida do cliente, que a resposta deve considerar:\n"${dados.mensagem_cliente}"`
+              : '',
             `\nInstrucoes especificas do advogado:\n${dados.instrucoes}`,
           ]
             .filter(Boolean)
@@ -202,8 +281,9 @@ export class IaService {
   async copiloto(
     tenantId: string,
     dados: { pergunta: string; processo_id?: string; buscar_jurisprudencia?: boolean; historico?: HistoricoItem[] },
+    usuarioId?: string,
   ): Promise<{ resposta: string }> {
-    await this.verificarEContarUso(tenantId);
+    await this.verificarEContarUso(tenantId, usuarioId);
 
     const { texto: contextoProcesso } = await this.contextoProcesso(tenantId, dados.processo_id);
 
@@ -222,6 +302,7 @@ export class IaService {
     const resposta = await this.client.messages.create({
       model: 'claude-sonnet-5',
       max_tokens: 2048,
+      thinking: { type: 'disabled' },
       system: [
         { type: 'text', text: instrucaoBase, cache_control: { type: 'ephemeral' } },
         ...(dados.buscar_jurisprudencia
@@ -230,7 +311,8 @@ export class IaService {
                 type: 'text' as const,
                 text:
                   'Utilize a busca na web para localizar jurisprudencia real e atual (STJ, STF, TRTs, TJs) ' +
-                  'relevante a pergunta, citando o tribunal, numero do processo/tema e a tese resumida.',
+                  'relevante a pergunta, citando o tribunal, numero do processo/tema e a tese resumida.' +
+                  INSTRUCAO_JURISPRUDENCIA_FALLBACK,
               },
             ]
           : []),
@@ -252,7 +334,12 @@ export class IaService {
 
   /** Resumo do processo com cache em Mongo - so chama a IA de novo se `regenerar`
    * for true ou se ainda nao existir resumo salvo. */
-  async resumoProcesso(tenantId: string, processoId: string, regenerar: boolean): Promise<{ resumo: string; gerado_em: Date }> {
+  async resumoProcesso(
+    tenantId: string,
+    processoId: string,
+    regenerar: boolean,
+    usuarioId?: string,
+  ): Promise<{ resumo: string; gerado_em: Date }> {
     const processo = await this.processoModel.findOne({
       _id: new Types.ObjectId(processoId),
       tenant_id: new Types.ObjectId(tenantId),
@@ -263,12 +350,13 @@ export class IaService {
       return { resumo: processo.ia_resumo, gerado_em: processo.ia_resumo_gerado_em };
     }
 
-    await this.verificarEContarUso(tenantId);
+    await this.verificarEContarUso(tenantId, usuarioId);
     const { texto: contexto } = await this.contextoProcesso(tenantId, processoId);
 
     const resposta = await this.client.messages.create({
       model: 'claude-sonnet-5',
       max_tokens: 1024,
+      thinking: { type: 'disabled' },
       system: [
         {
           type: 'text',
@@ -289,16 +377,67 @@ export class IaService {
     return { resumo, gerado_em: geradoEm };
   }
 
+  /** Mesmo padrao de cache do resumo do processo, mas para o cliente: junta os dados
+   * cadastrais com os processos vinculados para dar um panorama do relacionamento. */
+  async resumoCliente(
+    tenantId: string,
+    clienteId: string,
+    regenerar: boolean,
+    usuarioId?: string,
+  ): Promise<{ resumo: string; gerado_em: Date }> {
+    const cliente = await this.clienteModel.findOne({
+      _id: new Types.ObjectId(clienteId),
+      tenant_id: new Types.ObjectId(tenantId),
+    });
+    if (!cliente) throw new NotFoundException('cliente nao encontrado');
+
+    if (!regenerar && cliente.ia_resumo && cliente.ia_resumo_gerado_em) {
+      return { resumo: cliente.ia_resumo, gerado_em: cliente.ia_resumo_gerado_em };
+    }
+
+    await this.verificarEContarUso(tenantId, usuarioId);
+    const [{ texto: contextoCliente }, contextoProcessos] = await Promise.all([
+      this.contextoCliente(tenantId, clienteId),
+      this.processosDoCliente(tenantId, clienteId),
+    ]);
+    const contexto = [contextoCliente, contextoProcessos].filter(Boolean).join('\n');
+
+    const resposta = await this.client.messages.create({
+      model: 'claude-sonnet-5',
+      max_tokens: 1024,
+      thinking: { type: 'disabled' },
+      system: [
+        {
+          type: 'text',
+          text:
+            'Voce e o copiloto juridico do Trilva. Resuma o relacionamento do escritorio com este cliente ' +
+            'em ate 3 frases curtas, em portugues, direto ao ponto: quantos processos tem, o status geral ' +
+            'e qualquer ponto de atencao (ex.: nenhum processo ativo). Sem markdown.',
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
+      messages: [{ role: 'user', content: contexto || `Cliente sem processos vinculados: ${cliente.nome}` }],
+    });
+
+    const resumo = this.extrairUltimoTexto(resposta);
+    const geradoEm = new Date();
+    cliente.ia_resumo = resumo;
+    cliente.ia_resumo_gerado_em = geradoEm;
+    await cliente.save();
+    return { resumo, gerado_em: geradoEm };
+  }
+
   /** Sugere proximos passos como uma lista curta de titulos de tarefa - o frontend
    * decide quais criar. Formato de saida e uma lista simples, uma por linha, para
    * evitar dependencia de structured output. */
-  async sugerirTarefas(tenantId: string, processoId: string): Promise<{ sugestoes: string[] }> {
-    await this.verificarEContarUso(tenantId);
+  async sugerirTarefas(tenantId: string, processoId: string, usuarioId?: string): Promise<{ sugestoes: string[] }> {
+    await this.verificarEContarUso(tenantId, usuarioId);
     const { texto: contexto } = await this.contextoProcesso(tenantId, processoId);
 
     const resposta = await this.client.messages.create({
       model: 'claude-sonnet-5',
       max_tokens: 512,
+      thinking: { type: 'disabled' },
       system: [
         {
           type: 'text',
@@ -322,14 +461,20 @@ export class IaService {
 
   /** Revisa um documento existente enviado pelo advogado, apontando inconsistencias,
    * prazos citados e pontos de atencao - nao reescreve o documento. */
-  async revisarDocumento(tenantId: string, arquivo: Express.Multer.File, processoId?: string): Promise<{ revisao: string }> {
-    await this.verificarEContarUso(tenantId);
+  async revisarDocumento(
+    tenantId: string,
+    arquivo: Express.Multer.File,
+    processoId?: string,
+    usuarioId?: string,
+  ): Promise<{ revisao: string }> {
+    await this.verificarEContarUso(tenantId, usuarioId);
     const textoDocumento = await this.extrairTexto(arquivo);
     const { texto: contextoProcesso } = await this.contextoProcesso(tenantId, processoId);
 
     const resposta = await this.client.messages.create({
       model: 'claude-sonnet-5',
       max_tokens: 2048,
+      thinking: { type: 'disabled' },
       system: [
         {
           type: 'text',

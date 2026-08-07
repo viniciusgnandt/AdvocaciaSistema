@@ -1,8 +1,9 @@
 'use client';
 
-import { ArrowRight, X } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, Sparkles, X } from 'lucide-react';
 import { ClassificacaoBadge, StatusBadge, UrgenciaBadge } from '@/components/ui/Badge';
-import type { Publicacao } from '@/lib/api';
+import { perguntarCopilotoIa, type Publicacao } from '@/lib/api';
 
 function capitalizarNome(nome: string) {
   return nome
@@ -30,6 +31,24 @@ export function PublicacaoModal({
   onIrParaProcesso: (numeroProcesso: string) => void;
 }) {
   const advogados = publicacao.advogados_destinatarios?.filter((a) => a.nome).map((a) => a.nome).join(', ');
+
+  const [respostaIa, setRespostaIa] = useState('');
+  const [carregandoIa, setCarregandoIa] = useState(false);
+  const [erroIa, setErroIa] = useState<string | null>(null);
+
+  const perguntarSobreIsso = async () => {
+    setCarregandoIa(true);
+    setErroIa(null);
+    try {
+      const pergunta = `O que essa publicação significa e o que eu preciso fazer? Texto da publicação:\n${publicacao.inteiro_teor_texto ?? '(sem texto disponível)'}`;
+      const { resposta } = await perguntarCopilotoIa({ pergunta });
+      setRespostaIa(resposta);
+    } catch (err) {
+      setErroIa(err instanceof Error ? err.message : 'Erro ao consultar a IA');
+    } finally {
+      setCarregandoIa(false);
+    }
+  };
 
   return (
     <div
@@ -76,6 +95,24 @@ export function PublicacaoModal({
           )}
 
           {advogados && <p className="text-xs text-gray-400 dark:text-gray-500">Advogados: {advogados}</p>}
+
+          {publicacao.inteiro_teor_texto && (
+            <div>
+              <button
+                onClick={perguntarSobreIsso}
+                disabled={carregandoIa}
+                className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
+              >
+                <Sparkles size={13} /> {carregandoIa ? 'Perguntando…' : 'O que isso significa? (IA)'}
+              </button>
+              {erroIa && <p className="text-xs text-red-600 dark:text-red-400 mt-1.5">{erroIa}</p>}
+              {respostaIa && (
+                <div className="mt-2 rounded-lg border border-brand-100 dark:border-brand-900/40 bg-brand-50/50 dark:bg-brand-900/10 p-3">
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{respostaIa}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="border-t border-gray-100 dark:border-gray-800 px-6 py-4">

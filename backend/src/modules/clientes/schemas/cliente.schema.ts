@@ -78,6 +78,13 @@ export class Cliente extends Document {
 
   @Prop({ default: false })
   vip: boolean;
+
+  // cache do resumo gerado por IA (Copiloto) - mesmo padrao usado em Processo
+  @Prop()
+  ia_resumo?: string;
+
+  @Prop()
+  ia_resumo_gerado_em?: Date;
 }
 
 export const ClienteSchema = SchemaFactory.createForClass(Cliente);

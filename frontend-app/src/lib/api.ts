@@ -1154,6 +1154,7 @@ export async function gerarDocumentoIa(dto: {
   cliente_id?: string;
   buscar_jurisprudencia?: boolean;
   modelo?: File;
+  mensagem_cliente?: string;
 }): Promise<{ texto: string }> {
   const form = new FormData();
   form.append('tipo_documento', dto.tipo_documento);
@@ -1162,6 +1163,7 @@ export async function gerarDocumentoIa(dto: {
   if (dto.cliente_id) form.append('cliente_id', dto.cliente_id);
   if (dto.buscar_jurisprudencia) form.append('buscar_jurisprudencia', 'true');
   if (dto.modelo) form.append('modelo', dto.modelo);
+  if (dto.mensagem_cliente) form.append('mensagem_cliente', dto.mensagem_cliente);
 
   const token = getToken();
   const res = await fetch(`${API_URL}/ia/gerar-documento`, {
@@ -1188,6 +1190,16 @@ export function resumoProcessoIa(processoId: string, regenerar?: boolean) {
   return request<{ resumo: string; gerado_em: string }>(
     `/ia/resumo-processo/${processoId}${regenerar ? '?regenerar=true' : ''}`,
   );
+}
+
+export function resumoClienteIa(clienteId: string, regenerar?: boolean) {
+  return request<{ resumo: string; gerado_em: string }>(
+    `/ia/resumo-cliente/${clienteId}${regenerar ? '?regenerar=true' : ''}`,
+  );
+}
+
+export function usoMesIa() {
+  return request<{ contagem: number; limite: number }>('/ia/uso-mes');
 }
 
 export function sugerirTarefasIa(processoId: string) {

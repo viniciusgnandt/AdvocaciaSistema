@@ -23,6 +23,7 @@ import {
   ScrollText,
   Search,
   Share2,
+  Sparkles,
   Star,
   Trash2,
   UserRound,
@@ -59,6 +60,8 @@ import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
 import HistoricoAmigavel from '@/components/common/HistoricoAmigavel';
 import NotasRapidas from '@/components/common/NotasRapidas';
 import { GerarProcuracaoModal } from '@/components/clientes/GerarProcuracaoModal';
+import { CopilotoIaModal } from '@/components/processos/CopilotoIaModal';
+import { ResumoIaCard } from '@/components/processos/ResumoIaCard';
 import { OnboardingClienteModal } from '@/components/clientes/OnboardingClienteModal';
 import { validarCpf, validarCnpj } from '@/lib/documento';
 import { BotaoFavorito } from '@/components/common/BotaoFavorito';
@@ -107,6 +110,7 @@ function ClientesPageConteudo() {
   const [somenteInativos, setSomenteInativos] = useState(false);
   const { ehFavorito, alternar } = useFavoritos();
   const [modalProcuracao, setModalProcuracao] = useState(false);
+  const [modalCopiloto, setModalCopiloto] = useState(false);
   const [modalOnboarding, setModalOnboarding] = useState(false);
   const [modalGrafo, setModalGrafo] = useState(false);
 
@@ -444,6 +448,8 @@ function ClientesPageConteudo() {
                   </div>
                 )}
 
+                <ResumoIaCard id={selecionado._id} tipo="cliente" />
+
                 <PortalCliente
                   id="secao-portal-cliente"
                   cliente={selecionado}
@@ -465,6 +471,12 @@ function ClientesPageConteudo() {
                     className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-800 rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 w-fit"
                   >
                     <ScrollText size={14} /> Emitir certidão
+                  </button>
+                  <button
+                    onClick={() => setModalCopiloto(true)}
+                    className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-800 rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 w-fit"
+                  >
+                    <Sparkles size={14} /> Copiloto IA
                   </button>
                 </div>
 
@@ -585,6 +597,8 @@ function ClientesPageConteudo() {
           onFechar={() => setModalProcuracao(false)}
         />
       )}
+
+      {modalCopiloto && selecionado && <CopilotoIaModal clienteId={selecionado._id} onFechar={() => setModalCopiloto(false)} />}
     </>
   );
 }

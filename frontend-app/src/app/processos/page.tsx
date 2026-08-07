@@ -611,7 +611,7 @@ function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtu
         <div className="pt-5">
           {aba === 'timeline' && (
             <>
-              <ResumoIaCard processoId={processo._id} />
+              <ResumoIaCard id={processo._id} tipo="processo" />
               <TimelineProcesso numeroProcesso={processo.numero_cnj} movimentacoes={processo.movimentacoes} />
             </>
           )}

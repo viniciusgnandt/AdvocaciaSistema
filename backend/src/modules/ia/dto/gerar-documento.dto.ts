@@ -23,4 +23,8 @@ export class GerarDocumentoDto {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   buscar_jurisprudencia?: boolean;
+
+  @IsOptional()
+  @IsString()
+  mensagem_cliente?: string;
 }

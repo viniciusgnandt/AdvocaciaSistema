@@ -2,17 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import { Sparkles, RefreshCw } from 'lucide-react';
-import { resumoProcessoIa } from '@/lib/api';
+import { resumoProcessoIa, resumoClienteIa } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
-export function ResumoIaCard({ processoId }: { processoId: string }) {
+export function ResumoIaCard({ id, tipo = 'processo' }: { id: string; tipo?: 'processo' | 'cliente' }) {
   const [resumo, setResumo] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [regenerando, setRegenerando] = useState(false);
 
+  const buscar = tipo === 'processo' ? resumoProcessoIa : resumoClienteIa;
+
   const carregar = (regenerar: boolean) => {
     (regenerar ? setRegenerando : setCarregando)(true);
-    resumoProcessoIa(processoId, regenerar)
+    buscar(id, regenerar)
       .then((r) => setResumo(r.resumo))
       .catch(() => setResumo(null))
       .finally(() => {
@@ -24,7 +26,7 @@ export function ResumoIaCard({ processoId }: { processoId: string }) {
   useEffect(() => {
     carregar(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [processoId]);
+  }, [id]);
 
   if (!carregando && !resumo) return null;
 

@@ -32,6 +32,7 @@ import {
   enviarFotoPerfil,
   enviarLogoEscritorio,
   exportarMeusDados,
+  usoMesIa,
   listarAuditoria,
   salvarSessao,
   tenantLogado,
@@ -593,7 +594,40 @@ function EscritorioSecao() {
       </Cartao>
 
       <ExportarDadosCartao />
+      <UsoIaCartao />
     </div>
+  );
+}
+
+function UsoIaCartao() {
+  const [uso, setUso] = useState<{ contagem: number; limite: number } | null>(null);
+
+  useEffect(() => {
+    usoMesIa()
+      .then(setUso)
+      .catch(() => setUso(null));
+  }, []);
+
+  if (!uso) return null;
+
+  const percentual = Math.min(100, Math.round((uso.contagem / uso.limite) * 100));
+  const perto = percentual >= 80;
+
+  return (
+    <Cartao titulo="Uso de IA este mês" subtitulo="Chamadas ao Copiloto IA (Claude) usadas pelo escritório no mês atual">
+      <div className="flex items-center justify-between text-sm mb-2">
+        <span className="text-gray-700 dark:text-gray-300">
+          {uso.contagem} / {uso.limite} chamadas
+        </span>
+        <span className={perto ? 'text-critical-600 dark:text-critical-400' : 'text-gray-400'}>{percentual}%</span>
+      </div>
+      <div className="w-full h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+        <div
+          className={`h-full rounded-full ${perto ? 'bg-critical-500' : 'bg-brand-500'}`}
+          style={{ width: `${percentual}%` }}
+        />
+      </div>
+    </Cartao>
   );
 }
 

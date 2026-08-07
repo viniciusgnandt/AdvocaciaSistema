@@ -29,13 +29,19 @@ export class IaController {
     @UploadedFile() modelo?: Express.Multer.File,
   ) {
     const modeloTexto = modelo ? await this.iaService.extrairTexto(modelo) : undefined;
-    return this.iaService.gerarDocumento(usuario.tenantId, { ...dto, modelo_texto: modeloTexto });
+    return this.iaService.gerarDocumento(usuario.tenantId, { ...dto, modelo_texto: modeloTexto }, usuario.sub);
   }
 
   @Post('copiloto')
   @ApiOperation({ summary: 'Responde uma pergunta do advogado com contexto opcional de um processo e historico da conversa' })
   async copiloto(@CurrentUser() usuario: UsuarioAutenticado, @Body() dto: CopilotoDto) {
-    return this.iaService.copiloto(usuario.tenantId, dto);
+    return this.iaService.copiloto(usuario.tenantId, dto, usuario.sub);
+  }
+
+  @Get('uso-mes')
+  @ApiOperation({ summary: 'Quantidade de chamadas de IA usadas pelo escritorio no mes atual e o limite configurado' })
+  async usoMes(@CurrentUser() usuario: UsuarioAutenticado) {
+    return this.iaService.obterUsoMes(usuario.tenantId);
   }
 
   @Get('resumo-processo/:processoId')
@@ -45,13 +51,23 @@ export class IaController {
     @Param('processoId') processoId: string,
     @Query('regenerar') regenerar?: string,
   ) {
-    return this.iaService.resumoProcesso(usuario.tenantId, processoId, regenerar === 'true');
+    return this.iaService.resumoProcesso(usuario.tenantId, processoId, regenerar === 'true', usuario.sub);
+  }
+
+  @Get('resumo-cliente/:clienteId')
+  @ApiOperation({ summary: 'Resumo do relacionamento com o cliente gerado por IA (cacheado) - use ?regenerar=true para forcar' })
+  async resumoCliente(
+    @CurrentUser() usuario: UsuarioAutenticado,
+    @Param('clienteId') clienteId: string,
+    @Query('regenerar') regenerar?: string,
+  ) {
+    return this.iaService.resumoCliente(usuario.tenantId, clienteId, regenerar === 'true', usuario.sub);
   }
 
   @Get('sugerir-tarefas/:processoId')
   @ApiOperation({ summary: 'Sugere proximos passos do processo como uma lista de possiveis tarefas' })
   async sugerirTarefas(@CurrentUser() usuario: UsuarioAutenticado, @Param('processoId') processoId: string) {
-    return this.iaService.sugerirTarefas(usuario.tenantId, processoId);
+    return this.iaService.sugerirTarefas(usuario.tenantId, processoId, usuario.sub);
   }
 
   @Post('revisar-documento')
@@ -63,7 +79,7 @@ export class IaController {
     @UploadedFile() arquivo: Express.Multer.File,
     @Body('processo_id') processoId?: string,
   ) {
-    return this.iaService.revisarDocumento(usuario.tenantId, arquivo, processoId);
+    return this.iaService.revisarDocumento(usuario.tenantId, arquivo, processoId, usuario.sub);
   }
 
   @Get('modelos')

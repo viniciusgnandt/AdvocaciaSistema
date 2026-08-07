@@ -19,12 +19,14 @@ import { montarPdfTexto } from '@/lib/exportar';
 import { toast } from '@/lib/toast';
 
 const TIPOS_DOCUMENTO = [
+  'Petição inicial',
   'Petição intermediária',
   'Contestação',
   'Notificação extrajudicial',
   'Réplica',
   'Recurso',
   'E-mail para o cliente',
+  'Resposta a mensagem do cliente',
 ];
 
 type Modo = 'copiloto' | 'documento' | 'revisar';
@@ -32,10 +34,12 @@ type Modo = 'copiloto' | 'documento' | 'revisar';
 export function CopilotoIaModal({
   processoId,
   numeroCnj,
+  clienteId,
   onFechar,
 }: {
   processoId?: string;
   numeroCnj?: string;
+  clienteId?: string;
   onFechar: () => void;
 }) {
   const [modo, setModo] = useState<Modo>('copiloto');
@@ -44,8 +48,9 @@ export function CopilotoIaModal({
   const [conversa, setConversa] = useState<HistoricoCopiloto[]>([]);
   const [buscarJurisCopiloto, setBuscarJurisCopiloto] = useState(false);
 
-  const [tipoDocumento, setTipoDocumento] = useState(TIPOS_DOCUMENTO[0]);
+  const [tipoDocumento, setTipoDocumento] = useState(processoId ? 'Petição intermediária' : 'Petição inicial');
   const [instrucoes, setInstrucoes] = useState('');
+  const [mensagemCliente, setMensagemCliente] = useState('');
   const [textoDocumento, setTextoDocumento] = useState('');
   const [buscarJurisDocumento, setBuscarJurisDocumento] = useState(false);
   const [modelo, setModelo] = useState<File | null>(null);
@@ -101,8 +106,10 @@ export function CopilotoIaModal({
         tipo_documento: tipoDocumento,
         instrucoes,
         processo_id: processoId,
+        cliente_id: clienteId,
         buscar_jurisprudencia: buscarJurisDocumento,
         modelo: modelo ?? undefined,
+        mensagem_cliente: tipoDocumento === 'Resposta a mensagem do cliente' ? mensagemCliente : undefined,
       });
       setTextoDocumento(texto);
     } catch (err) {
@@ -334,9 +341,25 @@ export function CopilotoIaModal({
                   ))}
                 </select>
               </label>
+
+              {tipoDocumento === 'Resposta a mensagem do cliente' && (
+                <label className="block">
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">
+                    Cole aqui a mensagem do cliente
+                  </span>
+                  <textarea
+                    value={mensagemCliente}
+                    onChange={(e) => setMensagemCliente(e.target.value)}
+                    rows={3}
+                    placeholder="Ex.: Boa tarde, gostaria de saber como está meu processo, já tem previsão de audiência?"
+                    className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+                  />
+                </label>
+              )}
+
               <label className="block">
                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">
-                  Instruções {processoId ? '(com contexto deste processo)' : ''}
+                  Instruções {processoId ? '(com contexto deste processo)' : clienteId ? '(com contexto deste cliente)' : ''}
                 </span>
                 <textarea
                   value={instrucoes}
