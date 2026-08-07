@@ -4,6 +4,9 @@
 
 body {
   @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+  /* numeros com largura fixa por padrao - evita "dancar" em colunas de tabela,
+     KPIs e valores monetarios quando os digitos mudam */
+  font-variant-numeric: tabular-nums;
 }
 
 ::-webkit-scrollbar {
