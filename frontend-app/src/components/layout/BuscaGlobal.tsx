@@ -2,8 +2,28 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Gavel, Search, UserRound, X } from 'lucide-react';
+import { Clock, Gavel, Search, UserRound, X } from 'lucide-react';
 import { listarClientes, listarProcessos, type Cliente, type Processo } from '@/lib/api';
+import { cn } from '@/lib/cn';
+
+type BuscaRecente = { tipo: 'cliente' | 'processo'; label: string; sublabel?: string; destino: string };
+
+const CHAVE_RECENTES = 'trilva_buscas_recentes';
+const MAX_RECENTES = 6;
+
+function lerRecentes(): BuscaRecente[] {
+  try {
+    return JSON.parse(localStorage.getItem(CHAVE_RECENTES) ?? '[]');
+  } catch {
+    return [];
+  }
+}
+
+function salvarRecente(item: BuscaRecente) {
+  const atuais = lerRecentes().filter((r) => r.destino !== item.destino);
+  const novos = [item, ...atuais].slice(0, MAX_RECENTES);
+  localStorage.setItem(CHAVE_RECENTES, JSON.stringify(novos));
+}
 
 export function BuscaGlobal() {
   const router = useRouter();
@@ -12,6 +32,7 @@ export function BuscaGlobal() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [buscando, setBuscando] = useState(false);
+  const [recentes, setRecentes] = useState<BuscaRecente[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -27,7 +48,10 @@ export function BuscaGlobal() {
   }, []);
 
   useEffect(() => {
-    if (aberto) setTimeout(() => inputRef.current?.focus(), 50);
+    if (aberto) {
+      setTimeout(() => inputRef.current?.focus(), 50);
+      setRecentes(lerRecentes());
+    }
   }, [aberto]);
 
   useEffect(() => {
@@ -51,7 +75,8 @@ export function BuscaGlobal() {
     return () => clearTimeout(timeout);
   }, [termo, aberto]);
 
-  const irPara = (destino: string) => {
+  const irPara = (destino: string, recente?: BuscaRecente) => {
+    if (recente) salvarRecente(recente);
     setAberto(false);
     setTermo('');
     router.push(destino);
@@ -104,7 +129,27 @@ export function BuscaGlobal() {
             </div>
 
             <div className="max-h-96 overflow-y-auto">
-              {termo.trim().length < 2 && (
+              {termo.trim().length < 2 && recentes.length > 0 && (
+                <div className="py-2">
+                  <p className="px-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Buscas recentes</p>
+                  {recentes.map((r, i) => (
+                    <button
+                      key={`${r.destino}-${i}`}
+                      onClick={() => irPara(r.destino)}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+                    >
+                      <Clock size={14} className="text-gray-400 shrink-0" />
+                      <div className="min-w-0">
+                        <p className={cn('truncate text-gray-800 dark:text-gray-200', r.tipo === 'processo' && 'font-mono text-xs')}>
+                          {r.label}
+                        </p>
+                        {r.sublabel && <p className="truncate text-xs text-gray-400">{r.sublabel}</p>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {termo.trim().length < 2 && recentes.length === 0 && (
                 <p className="px-4 py-6 text-center text-xs text-gray-400">Digite ao menos 2 letras para buscar.</p>
               )}
               {buscando && <p className="px-4 py-6 text-center text-xs text-gray-400">Buscando…</p>}
@@ -116,7 +161,7 @@ export function BuscaGlobal() {
                   {clientes.map((c) => (
                     <button
                       key={c._id}
-                      onClick={() => irPara(`/clientes?id=${c._id}`)}
+                      onClick={() => irPara(`/clientes?id=${c._id}`, { tipo: 'cliente', label: c.nome, destino: `/clientes?id=${c._id}` })}
                       className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
                     >
                       <UserRound size={14} className="text-gray-400 shrink-0" />
@@ -132,7 +177,14 @@ export function BuscaGlobal() {
                   {processos.map((p) => (
                     <button
                       key={p._id}
-                      onClick={() => irPara(`/processos?numero=${p.numero_cnj}`)}
+                      onClick={() =>
+                        irPara(`/processos?numero=${p.numero_cnj}`, {
+                          tipo: 'processo',
+                          label: p.numero_cnj,
+                          sublabel: p.parte_ativa,
+                          destino: `/processos?numero=${p.numero_cnj}`,
+                        })
+                      }
                       className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
                     >
                       <Gavel size={14} className="text-gray-400 shrink-0" />
