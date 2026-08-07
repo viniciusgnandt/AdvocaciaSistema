@@ -183,6 +183,10 @@ export async function montarPdfTexto(titulo: string, texto: string): Promise<jsP
   return doc;
 }
 
+const FONTE = 'Times New Roman';
+const TAMANHO_CORPO = 24; // 12pt (docx usa meios-pontos)
+const TAMANHO_TITULO = 32; // 16pt
+
 /** Considera "titulo de secao" uma linha curta e majoritariamente em maiusculas
  * (convencao usada em pecas processuais brasileiras, ex.: "DOS PEDIDOS"). */
 function pareceTituloDeSecao(linha: string): boolean {
@@ -193,35 +197,77 @@ function pareceTituloDeSecao(linha: string): boolean {
   return letras === letras.toUpperCase();
 }
 
+/** Enderecamento (ex.: "EXCELENTISSIMO(A) SENHOR(A) DOUTOR(A) JUIZ(A)...") -
+ * convencionalmente em negrito e sem recuo, igual a um titulo de secao. */
+function pareceEnderecamento(linha: string): boolean {
+  return /^EXCELENT[ÍI]SSIMO/i.test(linha.trim());
+}
+
+/** Fecho da peca (ex.: "Nestes termos, pede deferimento.", "Termos em que...") -
+ * sem recuo de primeira linha, mas sem negrito. */
+function pareceFecho(linha: string): boolean {
+  return /^(nestes termos|termos em que|pede deferimento)/i.test(linha.trim());
+}
+
+/** Linha de assinatura (nome do advogado, OAB, "(assinado digitalmente)") -
+ * centralizada e em italico, como no rodape de uma peca protocolada. */
+function pareceAssinatura(linha: string): boolean {
+  const texto = linha.trim();
+  return /assinado digitalmente|^OAB\/|OAB[\s/-]*n[ºo°]/i.test(texto);
+}
+
 /** Monta um .docx de texto corrido (minutas geradas pelo Copiloto IA), editavel
  * pelo advogado - sem marca d'agua e sem cabecalho de identidade visual do
- * escritorio, ja que o destino e edicao/protocolo e nao apresentacao. Titulos de
- * secao em maiusculas viram paragrafos em negrito. */
+ * escritorio, ja que o destino e edicao/protocolo e nao apresentacao. Usa fonte e
+ * corpo de texto no padrao de pecas processuais (Times New Roman 12, 1,5 linha,
+ * paragrafo justificado com recuo de primeira linha); titulos de secao,
+ * enderecamento e fecho/assinatura recebem tratamento proprio. */
 export async function montarDocxTexto(titulo: string, texto: string): Promise<Blob> {
   const paragrafosTexto = texto.split(/\n+/).map((l) => l.trim()).filter(Boolean);
 
   const paragrafos = [
     new Paragraph({
-      children: [new TextRun({ text: titulo, bold: true, size: 28 })],
+      children: [new TextRun({ text: titulo, bold: true, font: FONTE, size: TAMANHO_TITULO })],
       alignment: AlignmentType.CENTER,
       spacing: { after: 300 },
     }),
-    ...paragrafosTexto.map((linha) =>
-      pareceTituloDeSecao(linha)
-        ? new Paragraph({
-            children: [new TextRun({ text: linha, bold: true })],
-            spacing: { before: 300, after: 150 },
-          })
-        : new Paragraph({
-            children: [new TextRun({ text: linha })],
-            alignment: AlignmentType.JUSTIFIED,
-            spacing: { after: 200, line: 360 },
-            indent: { firstLine: 700 },
-          }),
-    ),
+    ...paragrafosTexto.map((linha) => {
+      if (pareceTituloDeSecao(linha) || pareceEnderecamento(linha)) {
+        return new Paragraph({
+          children: [new TextRun({ text: linha, bold: true, font: FONTE, size: TAMANHO_CORPO })],
+          spacing: { before: 300, after: 150, line: 360 },
+        });
+      }
+      if (pareceAssinatura(linha)) {
+        return new Paragraph({
+          children: [new TextRun({ text: linha, italics: true, font: FONTE, size: TAMANHO_CORPO })],
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 100, after: 100, line: 360 },
+        });
+      }
+      if (pareceFecho(linha)) {
+        return new Paragraph({
+          children: [new TextRun({ text: linha, font: FONTE, size: TAMANHO_CORPO })],
+          spacing: { before: 300, after: 200, line: 360 },
+        });
+      }
+      return new Paragraph({
+        children: [new TextRun({ text: linha, font: FONTE, size: TAMANHO_CORPO })],
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { after: 200, line: 360 },
+        indent: { firstLine: 700 },
+      });
+    }),
   ];
 
   const documento = new Document({
+    styles: {
+      default: {
+        document: {
+          run: { font: FONTE, size: TAMANHO_CORPO },
+        },
+      },
+    },
     sections: [{ children: paragrafos }],
   });
 
