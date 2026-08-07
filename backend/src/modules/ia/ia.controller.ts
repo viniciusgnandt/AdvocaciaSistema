@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -6,6 +6,7 @@ import { IaService } from './ia.service';
 import { GerarDocumentoDto } from './dto/gerar-documento.dto';
 import { CopilotoDto } from './dto/copiloto.dto';
 import { SalvarModeloDto } from './dto/salvar-modelo.dto';
+import { AdicionarCreditosDto } from './dto/adicionar-creditos.dto';
 import { CurrentUser, UsuarioAutenticado } from '../auth/decorators/current-user.decorator';
 
 const LIMITE_MODELO_BYTES = 10 * 1024 * 1024; // 10MB
@@ -38,10 +39,19 @@ export class IaController {
     return this.iaService.copiloto(usuario.tenantId, dto, usuario.sub);
   }
 
-  @Get('uso-mes')
-  @ApiOperation({ summary: 'Quantidade de chamadas de IA usadas pelo escritorio no mes atual e o limite configurado' })
-  async usoMes(@CurrentUser() usuario: UsuarioAutenticado) {
-    return this.iaService.obterUsoMes(usuario.tenantId);
+  @Get('creditos')
+  @ApiOperation({ summary: 'Saldo de creditos de IA do escritorio e os ultimos lancamentos (consumo e cargas)' })
+  async creditos(@CurrentUser() usuario: UsuarioAutenticado) {
+    return this.iaService.obterSaldoCreditos(usuario.tenantId);
+  }
+
+  @Post('creditos/adicionar')
+  @ApiOperation({
+    summary: 'Carga manual de creditos de IA (simula uma compra ate existir billing de verdade) - apenas admin',
+  })
+  async adicionarCreditos(@CurrentUser() usuario: UsuarioAutenticado, @Body() dto: AdicionarCreditosDto) {
+    if (usuario.perfil !== 'admin') throw new ForbiddenException('apenas admin pode carregar creditos');
+    return this.iaService.adicionarCreditos(usuario.tenantId, dto.quantidade, usuario.sub);
   }
 
   @Get('resumo-processo/:processoId')

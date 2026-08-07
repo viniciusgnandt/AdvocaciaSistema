@@ -19,6 +19,12 @@ export class Tenant extends Document {
 
   @Prop()
   logo_key?: string;
+
+  // saldo de creditos de IA (Copiloto) - 1 credito = US$ 0.01 de custo estimado de
+  // API. Comeca com uma carga gratuita para o tenant poder experimentar; ainda nao
+  // ha billing real - creditos adicionais sao carregados manualmente por um admin.
+  @Prop({ default: 1000 })
+  ia_creditos: number;
 }
 
 export const TenantSchema = SchemaFactory.createForClass(Tenant);

@@ -13,6 +13,7 @@ import {
   Moon,
   Palette,
   ShieldCheck,
+  Sparkles,
   Sun,
   UserCircle,
   Users as UsersIcon,
@@ -32,7 +33,8 @@ import {
   enviarFotoPerfil,
   enviarLogoEscritorio,
   exportarMeusDados,
-  usoMesIa,
+  saldoCreditosIa,
+  adicionarCreditosIa,
   listarAuditoria,
   salvarSessao,
   tenantLogado,
@@ -40,10 +42,21 @@ import {
   type PerfilUsuario,
   type LogAuditoria,
   type Tenant,
+  type TransacaoCreditoIa,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { toast } from '@/lib/toast';
 
-type SecaoConfig = 'conta' | 'escritorio' | 'equipe' | 'checklists' | 'decisoes' | 'auditoria' | 'aparencia' | 'sobre';
+type SecaoConfig =
+  | 'conta'
+  | 'escritorio'
+  | 'equipe'
+  | 'checklists'
+  | 'decisoes'
+  | 'auditoria'
+  | 'consumo-ia'
+  | 'aparencia'
+  | 'sobre';
 
 const LABEL_PERFIL: Record<PerfilUsuario, string> = { admin: 'Admin', advogado: 'Advogado(a)', assistente: 'Assistente' };
 
@@ -59,6 +72,7 @@ export default function ConfiguracoesPage() {
     { id: 'checklists', icon: ListChecks, label: 'Checklists', adminOnly: true },
     { id: 'decisoes', icon: Gavel, label: 'Aprovações', adminOnly: false },
     { id: 'auditoria', icon: ShieldCheck, label: 'Auditoria', adminOnly: true },
+    { id: 'consumo-ia', icon: Sparkles, label: 'Consumo de IA', adminOnly: true },
     { id: 'aparencia', icon: Palette, label: 'Aparência', adminOnly: false },
     { id: 'sobre', icon: Info, label: 'Sobre', adminOnly: false },
   ];
@@ -97,6 +111,7 @@ export default function ConfiguracoesPage() {
             {secao === 'checklists' && ehAdmin && <ChecklistsAba />}
             {secao === 'decisoes' && <DecisoesAba />}
             {secao === 'auditoria' && ehAdmin && <AuditoriaSecao />}
+            {secao === 'consumo-ia' && ehAdmin && <ConsumoIaSecao />}
             {secao === 'aparencia' && <AparenciaSecao />}
             {secao === 'sobre' && <SobreSecao />}
           </div>
@@ -594,40 +609,132 @@ function EscritorioSecao() {
       </Cartao>
 
       <ExportarDadosCartao />
-      <UsoIaCartao />
     </div>
   );
 }
 
-function UsoIaCartao() {
-  const [uso, setUso] = useState<{ contagem: number; limite: number } | null>(null);
+const LABEL_OPERACAO: Record<string, string> = {
+  'gerar-documento': 'Gerar documento',
+  copiloto: 'Copiloto (pergunta)',
+  'resumo-processo': 'Resumo de processo',
+  'resumo-cliente': 'Resumo de cliente',
+  'sugerir-tarefas': 'Sugerir tarefas',
+  'revisar-documento': 'Revisar documento',
+  'carga-manual': 'Carga de créditos',
+};
+
+function ConsumoIaSecao() {
+  const usuario = usuarioLogado();
+  const ehAdmin = usuario?.perfil === 'admin';
+
+  const [saldo, setSaldo] = useState<number | null>(null);
+  const [transacoes, setTransacoes] = useState<TransacaoCreditoIa[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [quantidade, setQuantidade] = useState('1000');
+  const [carregandoCredito, setCarregandoCredito] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const carregar = () => {
+    setLoading(true);
+    saldoCreditosIa()
+      .then((r) => {
+        setSaldo(r.saldo);
+        setTransacoes(r.transacoes);
+      })
+      .catch(() => setErro('Erro ao carregar dados de consumo.'))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    usoMesIa()
-      .then(setUso)
-      .catch(() => setUso(null));
+    carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!uso) return null;
+  const carregarCreditos = async () => {
+    const valor = Number(quantidade);
+    if (!valor || valor <= 0) return;
+    setCarregandoCredito(true);
+    setErro(null);
+    try {
+      await adicionarCreditosIa(valor);
+      toast(`${valor} créditos adicionados`);
+      carregar();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Erro ao adicionar créditos');
+    } finally {
+      setCarregandoCredito(false);
+    }
+  };
 
-  const percentual = Math.min(100, Math.round((uso.contagem / uso.limite) * 100));
-  const perto = percentual >= 80;
+  if (loading) return <p className="text-sm text-gray-400">Carregando…</p>;
+  if (saldo === null) return <p className="text-sm text-red-600 dark:text-red-400">Erro ao carregar dados de consumo.</p>;
+
+  const baixo = saldo < 100;
 
   return (
-    <Cartao titulo="Uso de IA este mês" subtitulo="Chamadas ao Copiloto IA (Claude) usadas pelo escritório no mês atual">
-      <div className="flex items-center justify-between text-sm mb-2">
-        <span className="text-gray-700 dark:text-gray-300">
-          {uso.contagem} / {uso.limite} chamadas
-        </span>
-        <span className={perto ? 'text-critical-600 dark:text-critical-400' : 'text-gray-400'}>{percentual}%</span>
-      </div>
-      <div className="w-full h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
-        <div
-          className={`h-full rounded-full ${perto ? 'bg-critical-500' : 'bg-brand-500'}`}
-          style={{ width: `${percentual}%` }}
-        />
-      </div>
-    </Cartao>
+    <div className="space-y-6">
+      <Cartao titulo="Saldo de créditos" subtitulo="1 crédito ≈ US$ 0,01 de custo estimado de API (Claude Sonnet 5)">
+        <div className="flex items-end justify-between mb-1">
+          <span className={cn('text-3xl font-semibold font-mono', baixo ? 'text-critical-600 dark:text-critical-400' : 'text-gray-900 dark:text-gray-100')}>
+            {saldo.toLocaleString('pt-BR')}
+          </span>
+          <span className="text-sm text-gray-400">créditos</span>
+        </div>
+        {baixo && (
+          <p className="text-xs text-critical-600 dark:text-critical-400 mt-1">
+            Saldo baixo — carregue mais créditos abaixo para não interromper o Copiloto IA.
+          </p>
+        )}
+
+        {ehAdmin && (
+          <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+            <input
+              type="number"
+              min={1}
+              value={quantidade}
+              onChange={(e) => setQuantidade(e.target.value)}
+              className="w-28 text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-1.5 text-gray-900 dark:text-gray-100"
+            />
+            <button
+              onClick={carregarCreditos}
+              disabled={carregandoCredito}
+              className="rounded-lg bg-brand-600 hover:bg-brand-700 px-3 py-1.5 text-sm font-medium text-white transition disabled:opacity-50"
+            >
+              {carregandoCredito ? 'Carregando…' : 'Carregar créditos'}
+            </button>
+            <span className="text-[11px] text-gray-400">
+              Carga manual — ainda não há cobrança automática (billing vem depois).
+            </span>
+          </div>
+        )}
+        {erro && <p className="text-xs text-red-600 dark:text-red-400 mt-2">{erro}</p>}
+      </Cartao>
+
+      <Cartao titulo="Extrato" subtitulo="Últimos lançamentos — consumo por chamada e cargas de crédito">
+        {transacoes.length === 0 ? (
+          <p className="text-sm text-gray-400">Nenhum lançamento ainda.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {transacoes.map((t) => (
+              <div key={t._id} className="flex items-center gap-3 text-sm py-1.5 border-b border-gray-50 dark:border-gray-800/60 last:border-0">
+                <span className="text-xs text-gray-400 w-32 shrink-0 font-mono">
+                  {new Date(t.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <span className="flex-1 text-gray-700 dark:text-gray-300 truncate">
+                  {LABEL_OPERACAO[t.operacao ?? ''] ?? t.operacao ?? '—'}
+                  {t.tokens_entrada != null && (
+                    <span className="text-xs text-gray-400"> · {t.tokens_entrada + (t.tokens_saida ?? 0)} tokens</span>
+                  )}
+                </span>
+                <span className={cn('font-mono text-xs font-medium shrink-0', t.tipo === 'credito' ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400')}>
+                  {t.tipo === 'credito' ? '+' : '-'}{t.creditos}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Cartao>
+    </div>
   );
 }
 

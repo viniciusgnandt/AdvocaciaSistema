@@ -7,12 +7,18 @@ import mammoth from 'mammoth';
 const pdfParse = require('pdf-parse');
 import { Processo } from '../processos/schemas/processo.schema';
 import { Cliente } from '../clientes/schemas/cliente.schema';
+import { Tenant } from '../auth/schemas/tenant.schema';
 import { ModeloDocumento } from './schemas/modelo-documento.schema';
-import { IaUso } from './schemas/ia-uso.schema';
+import { IaTransacao } from './schemas/ia-transacao.schema';
 
 const LIMITE_MODELO_CARACTERES = 20000; // evita prompts gigantes com modelos muito longos
-const LIMITE_MENSAL_PADRAO = Number(process.env.IA_LIMITE_MENSAL ?? 300);
 const LIMITE_POR_MINUTO_USUARIO = Number(process.env.IA_LIMITE_POR_MINUTO ?? 10);
+
+// precos do Claude Sonnet 5 (introducao, ate 2026-08-31) - US$ por milhao de tokens.
+// 1 credito = US$ 0.01 de custo estimado; ajustar aqui se o preco/modelo mudar.
+const PRECO_INPUT_POR_MILHAO = 2;
+const PRECO_OUTPUT_POR_MILHAO = 10;
+const DOLAR_POR_CREDITO = 0.01;
 
 const DOMINIOS_JURISPRUDENCIA = ['stj.jus.br', 'stf.jus.br', 'jusbrasil.com.br', 'trt2.jus.br', 'tjsp.jus.br', 'cnj.jus.br'];
 
@@ -34,8 +40,9 @@ export class IaService {
   constructor(
     @InjectModel(Processo.name) private readonly processoModel: Model<Processo>,
     @InjectModel(Cliente.name) private readonly clienteModel: Model<Cliente>,
+    @InjectModel(Tenant.name) private readonly tenantModel: Model<Tenant>,
     @InjectModel(ModeloDocumento.name) private readonly modeloModel: Model<ModeloDocumento>,
-    @InjectModel(IaUso.name) private readonly usoModel: Model<IaUso>,
+    @InjectModel(IaTransacao.name) private readonly transacaoModel: Model<IaTransacao>,
   ) {
     this.client = new Anthropic();
   }
@@ -55,29 +62,79 @@ export class IaService {
     chamadasPorUsuario.set(usuarioId, chamadas);
   }
 
-  /** Cota mensal simples por tenant - evita custo descontrolado de API. Incrementa
-   * antes de cada chamada e recusa quando o limite do mes ja foi atingido. */
-  private async verificarEContarUso(tenantId: string, usuarioId?: string): Promise<void> {
+  /** Verifica antes de cada chamada: limite por minuto + saldo de creditos positivo.
+   * O custo exato so e conhecido depois da resposta (depende de tokens gerados), por
+   * isso aqui so barra quando o saldo ja esta zerado ou negativo. */
+  private async verificarCreditos(tenantId: string, usuarioId?: string): Promise<void> {
     if (usuarioId) this.verificarLimitePorMinuto(usuarioId);
 
-    const anoMes = new Date().toISOString().slice(0, 7);
-    const uso = await this.usoModel.findOneAndUpdate(
-      { tenant_id: new Types.ObjectId(tenantId), ano_mes: anoMes },
-      { $inc: { contagem: 1 } },
-      { upsert: true, new: true },
-    );
-    if (uso.contagem > LIMITE_MENSAL_PADRAO) {
+    const tenant = await this.tenantModel.findById(tenantId).select('ia_creditos');
+    if (!tenant || tenant.ia_creditos <= 0) {
       throw new ForbiddenException(
-        `Limite mensal de ${LIMITE_MENSAL_PADRAO} chamadas de IA atingido para este escritorio. Fale com o suporte para aumentar a cota.`,
+        'Créditos de IA esgotados para este escritório. Peça a um admin para carregar mais créditos em Configurações → Consumo de IA.',
       );
     }
   }
 
-  /** Uso do mes atual, para exibir "X/limite" nas Configurações. */
-  async obterUsoMes(tenantId: string): Promise<{ contagem: number; limite: number }> {
-    const anoMes = new Date().toISOString().slice(0, 7);
-    const uso = await this.usoModel.findOne({ tenant_id: new Types.ObjectId(tenantId), ano_mes: anoMes });
-    return { contagem: uso?.contagem ?? 0, limite: LIMITE_MENSAL_PADRAO };
+  /** Converte o uso de tokens da resposta em creditos, debita do saldo do tenant e
+   * registra o lancamento no extrato. Chamado depois de toda chamada bem-sucedida a
+   * Claude - o custo real so e conhecido apos a resposta. */
+  private async debitarCreditos(
+    tenantId: string,
+    usuarioId: string | undefined,
+    usage: Anthropic.Usage,
+    operacao: string,
+  ): Promise<void> {
+    const tokensEntrada = usage.input_tokens + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0);
+    const tokensSaida = usage.output_tokens;
+    const custoDolares = (tokensEntrada * PRECO_INPUT_POR_MILHAO + tokensSaida * PRECO_OUTPUT_POR_MILHAO) / 1_000_000;
+    const creditos = Math.max(1, Math.ceil(custoDolares / DOLAR_POR_CREDITO));
+
+    await Promise.all([
+      // pipeline update (nao um $inc simples): tenants antigos podem nao ter o campo
+      // persistido no Mongo ainda - $ifNull garante que o default do schema (1000) e
+      // respeitado como ponto de partida em vez de um $inc tratar o campo ausente como 0
+      this.tenantModel.updateOne({ _id: new Types.ObjectId(tenantId) }, [
+        { $set: { ia_creditos: { $subtract: [{ $ifNull: ['$ia_creditos', 1000] }, creditos] } } },
+      ]),
+      this.transacaoModel.create({
+        tenant_id: new Types.ObjectId(tenantId),
+        tipo: 'consumo',
+        creditos,
+        operacao,
+        tokens_entrada: tokensEntrada,
+        tokens_saida: tokensSaida,
+        usuario_id: usuarioId ? new Types.ObjectId(usuarioId) : undefined,
+      }),
+    ]);
+  }
+
+  /** Saldo atual + ultimos lancamentos, para a tela de Consumo de IA. */
+  async obterSaldoCreditos(tenantId: string): Promise<{ saldo: number; transacoes: IaTransacao[] }> {
+    const [tenant, transacoes] = await Promise.all([
+      this.tenantModel.findById(tenantId).select('ia_creditos'),
+      this.transacaoModel.find({ tenant_id: new Types.ObjectId(tenantId) }).sort({ created_at: -1 }).limit(50),
+    ]);
+    return { saldo: tenant?.ia_creditos ?? 0, transacoes };
+  }
+
+  /** Carga manual de creditos, simulando uma compra ate existir billing de verdade.
+   * Restrita a admin (verificado no controller). */
+  async adicionarCreditos(tenantId: string, quantidade: number, usuarioId: string): Promise<{ saldo: number }> {
+    const tenant = await this.tenantModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(tenantId) },
+      [{ $set: { ia_creditos: { $add: [{ $ifNull: ['$ia_creditos', 1000] }, quantidade] } } }],
+      { new: true },
+    );
+    if (!tenant) throw new NotFoundException('tenant nao encontrado');
+    await this.transacaoModel.create({
+      tenant_id: new Types.ObjectId(tenantId),
+      tipo: 'credito',
+      creditos: quantidade,
+      operacao: 'carga-manual',
+      usuario_id: new Types.ObjectId(usuarioId),
+    });
+    return { saldo: tenant.ia_creditos };
   }
 
   private async contextoProcesso(tenantId: string, processoId?: string): Promise<{ texto: string; processo?: Processo }> {
@@ -216,7 +273,7 @@ export class IaService {
     },
     usuarioId?: string,
   ): Promise<{ texto: string }> {
-    await this.verificarEContarUso(tenantId, usuarioId);
+    await this.verificarCreditos(tenantId, usuarioId);
 
     const [{ texto: contextoProcesso }, { texto: contextoCliente }, contextoProcessosCliente] = await Promise.all([
       this.contextoProcesso(tenantId, dados.processo_id),
@@ -275,6 +332,7 @@ export class IaService {
       ],
     });
 
+    await this.debitarCreditos(tenantId, usuarioId, resposta.usage, 'gerar-documento');
     return { texto: this.extrairUltimoTexto(resposta) };
   }
 
@@ -283,7 +341,7 @@ export class IaService {
     dados: { pergunta: string; processo_id?: string; buscar_jurisprudencia?: boolean; historico?: HistoricoItem[] },
     usuarioId?: string,
   ): Promise<{ resposta: string }> {
-    await this.verificarEContarUso(tenantId, usuarioId);
+    await this.verificarCreditos(tenantId, usuarioId);
 
     const { texto: contextoProcesso } = await this.contextoProcesso(tenantId, dados.processo_id);
 
@@ -329,6 +387,7 @@ export class IaService {
       ],
     });
 
+    await this.debitarCreditos(tenantId, usuarioId, resposta.usage, 'copiloto');
     return { resposta: this.extrairUltimoTexto(resposta) };
   }
 
@@ -350,7 +409,7 @@ export class IaService {
       return { resumo: processo.ia_resumo, gerado_em: processo.ia_resumo_gerado_em };
     }
 
-    await this.verificarEContarUso(tenantId, usuarioId);
+    await this.verificarCreditos(tenantId, usuarioId);
     const { texto: contexto } = await this.contextoProcesso(tenantId, processoId);
 
     const resposta = await this.client.messages.create({
@@ -369,6 +428,7 @@ export class IaService {
       messages: [{ role: 'user', content: contexto }],
     });
 
+    await this.debitarCreditos(tenantId, usuarioId, resposta.usage, 'resumo-processo');
     const resumo = this.extrairUltimoTexto(resposta);
     const geradoEm = new Date();
     processo.ia_resumo = resumo;
@@ -395,7 +455,7 @@ export class IaService {
       return { resumo: cliente.ia_resumo, gerado_em: cliente.ia_resumo_gerado_em };
     }
 
-    await this.verificarEContarUso(tenantId, usuarioId);
+    await this.verificarCreditos(tenantId, usuarioId);
     const [{ texto: contextoCliente }, contextoProcessos] = await Promise.all([
       this.contextoCliente(tenantId, clienteId),
       this.processosDoCliente(tenantId, clienteId),
@@ -419,6 +479,7 @@ export class IaService {
       messages: [{ role: 'user', content: contexto || `Cliente sem processos vinculados: ${cliente.nome}` }],
     });
 
+    await this.debitarCreditos(tenantId, usuarioId, resposta.usage, 'resumo-cliente');
     const resumo = this.extrairUltimoTexto(resposta);
     const geradoEm = new Date();
     cliente.ia_resumo = resumo;
@@ -431,7 +492,7 @@ export class IaService {
    * decide quais criar. Formato de saida e uma lista simples, uma por linha, para
    * evitar dependencia de structured output. */
   async sugerirTarefas(tenantId: string, processoId: string, usuarioId?: string): Promise<{ sugestoes: string[] }> {
-    await this.verificarEContarUso(tenantId, usuarioId);
+    await this.verificarCreditos(tenantId, usuarioId);
     const { texto: contexto } = await this.contextoProcesso(tenantId, processoId);
 
     const resposta = await this.client.messages.create({
@@ -451,6 +512,7 @@ export class IaService {
       messages: [{ role: 'user', content: contexto }],
     });
 
+    await this.debitarCreditos(tenantId, usuarioId, resposta.usage, 'sugerir-tarefas');
     const texto = this.extrairUltimoTexto(resposta);
     const sugestoes = texto
       .split('\n')
@@ -467,7 +529,7 @@ export class IaService {
     processoId?: string,
     usuarioId?: string,
   ): Promise<{ revisao: string }> {
-    await this.verificarEContarUso(tenantId, usuarioId);
+    await this.verificarCreditos(tenantId, usuarioId);
     const textoDocumento = await this.extrairTexto(arquivo);
     const { texto: contextoProcesso } = await this.contextoProcesso(tenantId, processoId);
 
@@ -499,6 +561,7 @@ export class IaService {
       ],
     });
 
+    await this.debitarCreditos(tenantId, usuarioId, resposta.usage, 'revisar-documento');
     return { revisao: this.extrairUltimoTexto(resposta) };
   }
 

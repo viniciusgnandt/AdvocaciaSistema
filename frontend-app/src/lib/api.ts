@@ -1198,8 +1198,22 @@ export function resumoClienteIa(clienteId: string, regenerar?: boolean) {
   );
 }
 
-export function usoMesIa() {
-  return request<{ contagem: number; limite: number }>('/ia/uso-mes');
+export type TransacaoCreditoIa = {
+  _id: string;
+  tipo: 'consumo' | 'credito';
+  creditos: number;
+  operacao?: string;
+  tokens_entrada?: number;
+  tokens_saida?: number;
+  created_at: string;
+};
+
+export function saldoCreditosIa() {
+  return request<{ saldo: number; transacoes: TransacaoCreditoIa[] }>('/ia/creditos');
+}
+
+export function adicionarCreditosIa(quantidade: number) {
+  return request<{ saldo: number }>('/ia/creditos/adicionar', { method: 'POST', body: JSON.stringify({ quantidade }) });
 }
 
 export function sugerirTarefasIa(processoId: string) {
