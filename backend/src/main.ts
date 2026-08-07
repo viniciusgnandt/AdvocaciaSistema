@@ -1,8 +1,21 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+
+const logger = new Logger('Process');
+
+// Node derruba o processo inteiro em promises rejeitadas sem catch (padrão desde
+// o Node 15). Sem isso, um erro assíncrono qualquer mata a API inteira sem deixar
+// rastro no log - loga aqui em vez de deixar o processo morrer silenciosamente.
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection', reason instanceof Error ? reason.stack : reason);
+});
+
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception', err.stack);
+});
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
