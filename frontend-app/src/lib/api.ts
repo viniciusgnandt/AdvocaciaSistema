@@ -543,6 +543,7 @@ export type Cliente = {
   observacoes?: string;
   origem_lead?: string;
   endereco?: Endereco;
+  indicado_por_id?: string;
   portal_ativo?: boolean;
   portal_token?: string;
   updated_at?: string;
@@ -564,6 +565,7 @@ export type NovoCliente = {
   observacoes?: string;
   origem_lead?: string;
   endereco?: Endereco;
+  indicado_por_id?: string;
 };
 
 export function listarClientes(busca?: string) {

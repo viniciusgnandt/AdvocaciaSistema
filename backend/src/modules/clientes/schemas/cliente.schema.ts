@@ -49,6 +49,11 @@ export class Cliente extends Document {
   @Prop()
   origem_lead?: string;
 
+  // quem indicou este cliente ao escritorio - outro cliente cadastrado, usado para
+  // montar o grafo de indicacao entre clientes
+  @Prop({ type: Types.ObjectId, index: true })
+  indicado_por_id?: Types.ObjectId;
+
   @Prop({ type: [String], default: [] })
   tags: string[];
 

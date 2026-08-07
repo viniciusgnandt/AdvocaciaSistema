@@ -20,6 +20,7 @@ import {
   Phone,
   Plus,
   Search,
+  Share2,
   Star,
   Trash2,
   UserRound,
@@ -101,6 +102,7 @@ function ClientesPageConteudo() {
   const { ehFavorito, alternar } = useFavoritos();
   const [modalProcuracao, setModalProcuracao] = useState(false);
   const [modalOnboarding, setModalOnboarding] = useState(false);
+  const [modalGrafo, setModalGrafo] = useState(false);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -241,6 +243,14 @@ function ClientesPageConteudo() {
               </button>
             </>
           )}
+          {clientes.length > 0 && (
+            <button
+              onClick={() => setModalGrafo(true)}
+              className="shrink-0 flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-500 dark:border-gray-800 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700"
+            >
+              <Share2 size={12} /> Indicações
+            </button>
+          )}
           <button
             onClick={() => setModal('novo')}
             className="shrink-0 flex items-center gap-2 rounded-lg bg-brand-600 hover:bg-brand-700 px-4 py-2.5 text-sm font-medium text-white transition"
@@ -355,6 +365,13 @@ function ClientesPageConteudo() {
                   {selecionado.razao_social && <InfoCard icon={Landmark} label="Razão social" valor={selecionado.razao_social} />}
                   {selecionado.nome_fantasia && <InfoCard icon={Landmark} label="Nome fantasia" valor={selecionado.nome_fantasia} />}
                   {selecionado.origem_lead && <InfoCard icon={Link2} label="Origem" valor={selecionado.origem_lead} />}
+                  {selecionado.indicado_por_id && (
+                    <InfoCard
+                      icon={Share2}
+                      label="Indicado por"
+                      valor={clientes.find((c) => c._id === selecionado.indicado_por_id)?.nome ?? '—'}
+                    />
+                  )}
                   {enderecoFormatado(selecionado.endereco) && (
                     <InfoCard icon={Landmark} label="Endereço" valor={enderecoFormatado(selecionado.endereco)} />
                   )}
@@ -477,10 +494,13 @@ function ClientesPageConteudo() {
       {modal && (
         <ClienteModal
           clienteEditando={modal === 'editar' ? selecionado : null}
+          todosClientes={clientes}
           onFechar={() => setModal(null)}
           onSalvo={handleSalvo}
         />
       )}
+
+      {modalGrafo && <GrafoIndicacoes clientes={clientes} onFechar={() => setModalGrafo(false)} />}
 
       {modalOnboarding && selecionado && (
         <OnboardingClienteModal
@@ -680,10 +700,12 @@ function VincularProcessoBusca({
 
 function ClienteModal({
   clienteEditando,
+  todosClientes,
   onFechar,
   onSalvo,
 }: {
   clienteEditando: Cliente | null;
+  todosClientes: Cliente[];
   onFechar: () => void;
   onSalvo: (c: Cliente) => void;
 }) {
@@ -702,6 +724,7 @@ function ClienteModal({
           profissao: clienteEditando.profissao,
           estado_civil: clienteEditando.estado_civil,
           data_nascimento: clienteEditando.data_nascimento,
+          indicado_por_id: clienteEditando.indicado_por_id,
           razao_social: clienteEditando.razao_social,
           nome_fantasia: clienteEditando.nome_fantasia,
           observacoes: clienteEditando.observacoes,
@@ -935,6 +958,23 @@ function ClienteModal({
             />
           </Campo>
 
+          <Campo label="Indicado por (outro cliente)">
+            <select
+              value={form.indicado_por_id ?? ''}
+              onChange={(e) => setForm({ ...form, indicado_por_id: e.target.value })}
+              className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+            >
+              <option value="">— nenhum —</option>
+              {todosClientes
+                .filter((c) => c._id !== clienteEditando?._id)
+                .map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.nome}
+                  </option>
+                ))}
+            </select>
+          </Campo>
+
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 pt-1">Endereço</p>
           <div className="grid grid-cols-3 gap-3">
             <Campo label="CEP">
@@ -1038,5 +1078,96 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
       <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{label}</span>
       {children}
     </label>
+  );
+}
+
+function GrafoIndicacoes({ clientes, onFechar }: { clientes: Cliente[]; onFechar: () => void }) {
+  const porIndicador = new Map<string, Cliente[]>();
+  let totalIndicados = 0;
+  for (const c of clientes) {
+    if (c.indicado_por_id) {
+      totalIndicados += 1;
+      const lista = porIndicador.get(c.indicado_por_id) ?? [];
+      lista.push(c);
+      porIndicador.set(c.indicado_por_id, lista);
+    }
+  }
+
+  // raizes: clientes que indicaram alguem, mas eles proprios nao foram indicados por
+  // ninguem no cadastro (evita duplicar quem ja aparece como filho de outro no mesmo grafo)
+  const idsIndicados = new Set(clientes.filter((c) => c.indicado_por_id).map((c) => c._id));
+  const raizes = clientes.filter((c) => porIndicador.has(c._id) && !idsIndicados.has(c._id));
+
+  return (
+    <div onClick={onFechar} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-2xl animate-scale-in max-h-[85vh] flex flex-col"
+      >
+        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-5 py-3.5 shrink-0">
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <Share2 size={15} className="text-brand-500" /> Rede de indicações
+          </p>
+          <button onClick={onFechar} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 overflow-y-auto">
+          {raizes.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">
+              Nenhuma indicação registrada ainda. Edite um cliente e preencha "Indicado por" para começar a montar a rede.
+            </p>
+          ) : (
+            <>
+              <p className="text-xs text-gray-400 mb-3">
+                {totalIndicados} cliente{totalIndicados === 1 ? '' : 's'} chegaram por indicação de outro cliente.
+              </p>
+              <ul className="space-y-1">
+                {raizes
+                  .sort((a, b) => (porIndicador.get(b._id)?.length ?? 0) - (porIndicador.get(a._id)?.length ?? 0))
+                  .map((raiz) => (
+                    <NoIndicacao key={raiz._id} cliente={raiz} porIndicador={porIndicador} profundidade={0} />
+                  ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NoIndicacao({
+  cliente,
+  porIndicador,
+  profundidade,
+}: {
+  cliente: Cliente;
+  porIndicador: Map<string, Cliente[]>;
+  profundidade: number;
+}) {
+  const filhos = porIndicador.get(cliente._id) ?? [];
+  return (
+    <li>
+      <div className="flex items-center gap-2 py-1.5" style={{ paddingLeft: profundidade * 20 }}>
+        <span className="w-6 h-6 rounded-full bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 text-xs font-semibold flex items-center justify-center shrink-0">
+          {cliente.nome.charAt(0).toUpperCase()}
+        </span>
+        <span className="text-sm text-gray-800 dark:text-gray-200 truncate">{cliente.nome}</span>
+        {filhos.length > 0 && (
+          <span className="text-[10px] text-gray-400 shrink-0">
+            → {filhos.length} indicaç{filhos.length === 1 ? 'ão' : 'ões'}
+          </span>
+        )}
+      </div>
+      {filhos.length > 0 && (
+        <ul>
+          {filhos.map((filho) => (
+            <NoIndicacao key={filho._id} cliente={filho} porIndicador={porIndicador} profundidade={profundidade + 1} />
+          ))}
+        </ul>
+      )}
+    </li>
   );
 }

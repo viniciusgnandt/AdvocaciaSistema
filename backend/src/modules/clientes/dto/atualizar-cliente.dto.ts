@@ -81,6 +81,11 @@ export class AtualizarClienteDto {
   @IsObject()
   endereco?: EnderecoDto;
 
+  @ApiProperty({ required: false, description: 'ID de outro cliente que indicou este ao escritorio, ou string vazia para remover' })
+  @IsOptional()
+  @IsString()
+  indicado_por_id?: string;
+
   @ApiProperty({
     required: false,
     description: 'updated_at que o cliente tinha quando o form foi aberto - se nao bater com o atual, indica edicao concorrente',

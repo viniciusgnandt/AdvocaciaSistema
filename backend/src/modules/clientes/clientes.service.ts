@@ -29,7 +29,12 @@ export class ClientesService {
   ) {}
 
   async criar(tenantId: Types.ObjectId, dto: CriarClienteDto): Promise<Cliente> {
-    const cliente = await this.clienteModel.create({ ...dto, tenant_id: tenantId });
+    const { indicado_por_id, ...resto } = dto;
+    const cliente = await this.clienteModel.create({
+      ...resto,
+      tenant_id: tenantId,
+      indicado_por_id: indicado_por_id ? new Types.ObjectId(indicado_por_id) : undefined,
+    });
     this.vincularProcessosEmBackground(tenantId, cliente._id as Types.ObjectId, cliente.nome);
     return cliente;
   }
@@ -208,7 +213,7 @@ export class ClientesService {
     clienteId: Types.ObjectId,
     dto: AtualizarClienteDto,
   ): Promise<Cliente | null> {
-    const { versao_esperada, ...resto } = dto;
+    const { versao_esperada, indicado_por_id, ...resto } = dto;
 
     if (versao_esperada) {
       const atual = await this.clienteModel.findOne({ _id: clienteId, tenant_id: tenantId }, 'updated_at');
@@ -217,9 +222,14 @@ export class ClientesService {
       }
     }
 
+    const set: Record<string, unknown> = { ...resto };
+    const unset: Record<string, unknown> = {};
+    if (indicado_por_id) set.indicado_por_id = new Types.ObjectId(indicado_por_id);
+    else if (indicado_por_id === '') unset.indicado_por_id = '';
+
     const cliente = await this.clienteModel.findOneAndUpdate(
       { _id: clienteId, tenant_id: tenantId },
-      { $set: resto },
+      { ...(Object.keys(set).length ? { $set: set } : {}), ...(Object.keys(unset).length ? { $unset: unset } : {}) },
       { new: true },
     );
     // nome pode ter mudado - reavalia o vinculo automatico com processos (idempotente,

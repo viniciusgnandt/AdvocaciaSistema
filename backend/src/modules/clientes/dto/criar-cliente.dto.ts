@@ -82,4 +82,9 @@ export class CriarClienteDto {
   @IsOptional()
   @IsObject()
   endereco?: EnderecoDto;
+
+  @ApiProperty({ required: false, description: 'ID de outro cliente que indicou este ao escritorio' })
+  @IsOptional()
+  @IsString()
+  indicado_por_id?: string;
 }
