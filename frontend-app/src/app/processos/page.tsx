@@ -48,6 +48,7 @@ import {
   type Usuario,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
 import { AnexoMovimentacao } from '@/components/processos/AnexoMovimentacao';
 import { FinanceiroProcesso } from '@/components/processos/FinanceiroProcesso';
@@ -275,15 +276,16 @@ function ProcessosPageConteudo() {
         {loading ? (
           <p className="text-gray-400 text-sm">Carregando…</p>
         ) : processos.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-800 py-16 text-center text-gray-400 text-sm">
-            {temFiltroAtivo(filtros)
-              ? 'Nenhum processo encontrado com os filtros atuais.'
-              : 'Nenhum processo enriquecido ainda. Isso acontece automaticamente conforme novas publicações chegam.'}
-          </div>
+          <EmptyState
+            titulo={temFiltroAtivo(filtros) ? 'Nenhum processo encontrado' : 'Nenhum processo enriquecido ainda'}
+            descricao={
+              temFiltroAtivo(filtros)
+                ? 'Tente ajustar ou limpar os filtros atuais.'
+                : 'Isso acontece automaticamente conforme novas publicações chegam.'
+            }
+          />
         ) : processosExibidos.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-800 py-16 text-center text-gray-400 text-sm">
-            Nenhum processo favoritado ainda. Clique na estrela de um processo para fixá-lo aqui.
-          </div>
+          <EmptyState titulo="Nenhum processo favoritado ainda" descricao="Clique na estrela de um processo para fixá-lo aqui." />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5">
             <ul className="space-y-2 max-h-[calc(100vh-140px)] overflow-y-auto pr-1">

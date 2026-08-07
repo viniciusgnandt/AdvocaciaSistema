@@ -52,6 +52,7 @@ import {
   type Processo,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
 import HistoricoAmigavel from '@/components/common/HistoricoAmigavel';
 import NotasRapidas from '@/components/common/NotasRapidas';
@@ -278,9 +279,20 @@ function ClientesPageConteudo() {
         {loading ? (
           <p className="text-gray-400 text-sm">Carregando…</p>
         ) : clientes.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-800 py-16 text-center text-gray-400 text-sm">
-            {busca ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado ainda.'}
-          </div>
+          <EmptyState
+            titulo={busca ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado ainda'}
+            descricao={busca ? 'Tente buscar por outro nome, CPF, CNPJ ou e-mail.' : undefined}
+            acao={
+              !busca && (
+                <button
+                  onClick={() => setModal('novo')}
+                  className="text-sm font-medium text-brand-600 dark:text-brand-400 hover:underline"
+                >
+                  Cadastrar primeiro cliente
+                </button>
+              )
+            }
+          />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5">
             <ul className="space-y-2 max-h-[calc(100vh-180px)] overflow-y-auto pr-1">

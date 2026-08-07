@@ -35,6 +35,7 @@ import {
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { mascararCnjDigitando, validarCnj } from '@/lib/cnj';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 const STATUS_LABEL: Record<string, string> = {
   pendente: 'Pendente',
@@ -254,9 +255,18 @@ export default function TarefasPage() {
         {loading ? (
           <p className="text-gray-400 text-sm">Carregando…</p>
         ) : tarefasFiltradas.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-800 py-16 text-center text-gray-400 text-sm">
-            Nenhuma tarefa por aqui.
-          </div>
+          <EmptyState
+            titulo="Nenhuma tarefa por aqui"
+            descricao="Crie uma tarefa manual ou ajuste os filtros acima."
+            acao={
+              <button
+                onClick={() => setModalAberto(true)}
+                className="text-sm font-medium text-brand-600 dark:text-brand-400 hover:underline"
+              >
+                Nova tarefa
+              </button>
+            }
+          />
         ) : visao === 'quadro' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-start">
             {COLUNAS.map((coluna) => {

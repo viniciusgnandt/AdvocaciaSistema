@@ -19,6 +19,7 @@ import {
   type Publicacao,
   type ResumoPublicacoes,
 } from '@/lib/api';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export default function PublicacoesPage() {
   const router = useRouter();
@@ -192,9 +193,7 @@ export default function PublicacoesPage() {
         {loading ? (
           <p className="text-gray-400 text-sm">Carregando…</p>
         ) : itens.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-800 py-16 text-center text-gray-400 text-sm">
-            Nenhuma publicação encontrada com os filtros atuais.
-          </div>
+          <EmptyState titulo="Nenhuma publicação encontrada" descricao="Tente ajustar os filtros atuais ou puxar novas publicações." />
         ) : (
           <>
             <div className="flex items-center gap-2 text-xs text-gray-400">
