@@ -77,7 +77,7 @@ export function ModoApresentacao({
           )}
         </div>
 
-        <h1 className="text-3xl sm:text-4xl font-semibold text-gray-900 dark:text-gray-100 text-balance">{titulo}</h1>
+        <h1 className="font-serif text-3xl sm:text-4xl font-semibold text-gray-900 dark:text-gray-100 text-balance">{titulo}</h1>
         <p className="font-mono text-base text-gray-400 dark:text-gray-500 mt-2">{numeroFormatado}</p>
 
         <div className="mt-3 inline-flex items-center gap-1.5 text-sm px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">

@@ -36,6 +36,11 @@ module.exports = {
           900: '#6f2a1c',
         },
       },
+      fontFamily: {
+        // serif discreta para títulos H1 - dá um toque editorial/institucional
+        // sem depender de webfont externa, usando a stack serif do sistema
+        serif: ['Georgia', 'ui-serif', '"Times New Roman"', 'serif'],
+      },
       keyframes: {
         fadeIn: { from: { opacity: 0 }, to: { opacity: 1 } },
         scaleIn: { from: { opacity: 0, transform: 'scale(0.97)' }, to: { opacity: 1, transform: 'scale(1)' } },
