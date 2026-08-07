@@ -37,6 +37,7 @@ import { cn } from '@/lib/cn';
 import { corAvatarUsuario } from '@/lib/corUsuario';
 import { mascararCnjDigitando, validarCnj } from '@/lib/cnj';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SkeletonLista } from '@/components/ui/SkeletonLista';
 import { toast } from '@/lib/toast';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -257,7 +258,7 @@ export default function TarefasPage() {
         </div>
 
         {loading ? (
-          <p className="text-gray-400 text-sm">Carregando…</p>
+          <SkeletonLista />
         ) : tarefasFiltradas.length === 0 ? (
           <EmptyState
             titulo="Nenhuma tarefa por aqui"

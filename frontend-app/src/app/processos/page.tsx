@@ -49,6 +49,7 @@ import {
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SkeletonLista } from '@/components/ui/SkeletonLista';
 import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
 import { AnexoMovimentacao } from '@/components/processos/AnexoMovimentacao';
 import { FinanceiroProcesso } from '@/components/processos/FinanceiroProcesso';
@@ -274,7 +275,7 @@ function ProcessosPageConteudo() {
         )}
 
         {loading ? (
-          <p className="text-gray-400 text-sm">Carregando…</p>
+          <SkeletonLista />
         ) : processos.length === 0 ? (
           <EmptyState
             titulo={temFiltroAtivo(filtros) ? 'Nenhum processo encontrado' : 'Nenhum processo enriquecido ainda'}

@@ -53,6 +53,7 @@ import {
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SkeletonLista } from '@/components/ui/SkeletonLista';
 import { toast } from '@/lib/toast';
 import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
 import HistoricoAmigavel from '@/components/common/HistoricoAmigavel';
@@ -282,7 +283,7 @@ function ClientesPageConteudo() {
         </div>
 
         {loading ? (
-          <p className="text-gray-400 text-sm">Carregando…</p>
+          <SkeletonLista />
         ) : clientes.length === 0 ? (
           <EmptyState
             titulo={busca ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado ainda'}

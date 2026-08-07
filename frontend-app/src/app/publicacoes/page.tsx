@@ -20,6 +20,7 @@ import {
   type ResumoPublicacoes,
 } from '@/lib/api';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SkeletonLista } from '@/components/ui/SkeletonLista';
 
 export default function PublicacoesPage() {
   const router = useRouter();
@@ -191,7 +192,7 @@ export default function PublicacoesPage() {
         )}
 
         {loading ? (
-          <p className="text-gray-400 text-sm">Carregando…</p>
+          <SkeletonLista />
         ) : itens.length === 0 ? (
           <EmptyState titulo="Nenhuma publicação encontrada" descricao="Tente ajustar os filtros atuais ou puxar novas publicações." />
         ) : (
