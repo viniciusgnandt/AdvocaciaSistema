@@ -309,7 +309,12 @@ export default function DashboardPage() {
     <>
       <Topbar titulo="Dashboard" subtitulo={nome ? `Bom te ver de volta, ${nome}` : 'Visão geral do escritório'} />
 
-      <main className="flex-1 px-6 py-6 space-y-6">
+      <main className="relative flex-1 px-6 py-6 space-y-6">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.035] dark:opacity-[0.05]"
+          style={{ backgroundImage: 'radial-gradient(currentColor 1px, transparent 1px)', backgroundSize: '22px 22px' }}
+        />
         {erro && (
           <div className="rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/50 px-4 py-3 text-sm text-red-700 dark:text-red-300">
             {erro}
