@@ -1146,3 +1146,16 @@ export function aprovarDecisao(id: string, nota?: string) {
 export function rejeitarDecisao(id: string, nota?: string) {
   return request<Decisao>(`/decisoes/${id}/rejeitar`, { method: 'PATCH', body: JSON.stringify({ nota }) });
 }
+
+export function gerarDocumentoIa(dto: {
+  tipo_documento: string;
+  instrucoes: string;
+  processo_id?: string;
+  cliente_id?: string;
+}) {
+  return request<{ texto: string }>('/ia/gerar-documento', { method: 'POST', body: JSON.stringify(dto) });
+}
+
+export function perguntarCopilotoIa(dto: { pergunta: string; processo_id?: string }) {
+  return request<{ resposta: string }>('/ia/copiloto', { method: 'POST', body: JSON.stringify(dto) });
+}

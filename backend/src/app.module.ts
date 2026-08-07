@@ -19,6 +19,7 @@ import { MetasModule } from './modules/metas/metas.module';
 import { ChecklistsModule } from './modules/checklists/checklists.module';
 import { NotasModule } from './modules/notas/notas.module';
 import { DecisoesModule } from './modules/decisoes/decisoes.module';
+import { IaModule } from './modules/ia/ia.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { DecisoesModule } from './modules/decisoes/decisoes.module';
     ChecklistsModule,
     NotasModule,
     DecisoesModule,
+    IaModule,
   ],
 })
 export class AppModule {}

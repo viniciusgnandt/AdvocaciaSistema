@@ -25,6 +25,7 @@ import {
   Scale,
   ScrollText,
   Search,
+  Sparkles,
   Star,
   StickyNote,
   Tag,
@@ -60,6 +61,7 @@ import NotasRapidas from '@/components/common/NotasRapidas';
 import { BotaoFavorito } from '@/components/common/BotaoFavorito';
 import { useFavoritos } from '@/lib/useFavoritos';
 import { ModoApresentacao } from '@/components/processos/ModoApresentacao';
+import { CopilotoIaModal } from '@/components/processos/CopilotoIaModal';
 import { ComparadorProcessos } from '@/components/processos/ComparadorProcessos';
 import { gerarCapaProcesso } from '@/lib/capaProcesso';
 import { BotaoExportar } from '@/components/ui/BotaoExportar';
@@ -454,6 +456,7 @@ function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtu
   const [aba, setAba] = useState<AbaProcesso>('movimentacoes');
   const [editando, setEditando] = useState(false);
   const [apresentando, setApresentando] = useState(false);
+  const [copilotoAberto, setCopilotoAberto] = useState(false);
   return (
     <div className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 space-y-6">
       <div>
@@ -483,6 +486,12 @@ function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtu
               className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5"
             >
               <Presentation size={13} /> Modo apresentação
+            </button>
+            <button
+              onClick={() => setCopilotoAberto(true)}
+              className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5"
+            >
+              <Sparkles size={13} /> Copiloto IA
             </button>
           </div>
         </div>
@@ -653,6 +662,8 @@ function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtu
           onFechar={() => setApresentando(false)}
         />
       )}
+
+      {copilotoAberto && <CopilotoIaModal processoId={processo._id} onFechar={() => setCopilotoAberto(false)} />}
     </div>
   );
 }
