@@ -10,6 +10,7 @@ import {
   CheckSquare,
   Gavel,
   Landmark,
+  Printer,
   TrendingUp,
   Users,
   X,
@@ -32,6 +33,25 @@ import {
   type Tarefa,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { exportarPdf } from '@/lib/exportar';
+
+function formatarNumeroCnj(numero: string): string {
+  if (numero.length !== 20) return numero;
+  return `${numero.slice(0, 7)}-${numero.slice(7, 9)}.${numero.slice(9, 13)}.${numero.slice(13, 14)}.${numero.slice(14, 16)}.${numero.slice(16)}`;
+}
+
+function imprimirAudienciasDaSemana(processos: Processo[]) {
+  const linhas = processos.map((p) => [
+    p.proxima_audiencia
+      ? new Date(p.proxima_audiencia).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+      : '—',
+    p.parte_ativa && p.parte_passiva ? `${p.parte_ativa} x ${p.parte_passiva}` : (p.parte_ativa ?? '—'),
+    formatarNumeroCnj(p.numero_cnj),
+    p.tribunal ?? '—',
+    p.orgao_julgador ?? '—',
+  ]);
+  exportarPdf('Audiências da semana', ['Data/hora', 'Partes', 'Processo', 'Tribunal', 'Órgão julgador'], linhas, 'audiencias-da-semana');
+}
 
 function formatarMoeda(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -278,6 +298,10 @@ export default function DashboardPage() {
     .sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime())
     .slice(0, 5);
   const proximasAudiencias = processosComAudiencia.slice(0, 5);
+  const daqui7Dias = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const audienciasDaSemana = processosComAudiencia.filter(
+    (p) => p.proxima_audiencia && new Date(p.proxima_audiencia) <= daqui7Dias,
+  );
   const proximosEventos = eventos.slice(0, 5);
   const aniversarios = proximosAniversarios(clientes).slice(0, 5);
 
@@ -333,7 +357,24 @@ export default function DashboardPage() {
             ))}
           </Painel>
 
-          <Painel titulo="Audiências marcadas" href="/processos?status=ativo_audiencia_agendada" icone={Landmark} vazio="Nenhuma audiência agendada." loading={loading}>
+          <Painel
+            titulo="Audiências marcadas"
+            href="/processos?status=ativo_audiencia_agendada"
+            icone={Landmark}
+            vazio="Nenhuma audiência agendada."
+            loading={loading}
+            acao={
+              audienciasDaSemana.length > 0 && (
+                <button
+                  onClick={() => imprimirAudienciasDaSemana(audienciasDaSemana)}
+                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  title="Imprimir relatório da semana"
+                >
+                  <Printer size={13} />
+                </button>
+              )
+            }
+          >
             {proximasAudiencias.map((p) => (
               <li key={p._id} className="flex items-center gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
@@ -374,6 +415,7 @@ function Painel({
   icone: Icon,
   vazio,
   loading,
+  acao,
   children,
 }: {
   titulo: string;
@@ -381,6 +423,7 @@ function Painel({
   icone: React.ElementType;
   vazio: string;
   loading: boolean;
+  acao?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const temConteudo = Array.isArray(children) ? children.length > 0 : Boolean(children);
@@ -390,9 +433,12 @@ function Painel({
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-800">
         <Icon size={14} className="text-gray-400" />
         <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{titulo}</p>
-        <Link href={href} className="ml-auto text-xs text-brand-600 dark:text-brand-400 hover:underline">
-          ver tudo
-        </Link>
+        <div className="ml-auto flex items-center gap-3">
+          {acao}
+          <Link href={href} className="text-xs text-brand-600 dark:text-brand-400 hover:underline">
+            ver tudo
+          </Link>
+        </div>
       </div>
       {loading ? (
         <p className="px-4 py-6 text-sm text-gray-400">Carregando…</p>
