@@ -133,6 +133,14 @@ export class Processo extends Document {
   // "assuntos", que vem do DataJud
   @Prop({ type: [String], default: [], index: true })
   tags: string[];
+
+  // cache do resumo gerado por IA (Copiloto) - evita chamar a API a cada vez que a
+  // aba Timeline e aberta; invalidado manualmente pelo botao "Regenerar"
+  @Prop()
+  ia_resumo?: string;
+
+  @Prop()
+  ia_resumo_gerado_em?: Date;
 }
 
 export const ProcessoSchema = SchemaFactory.createForClass(Processo);

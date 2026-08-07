@@ -1,4 +1,13 @@
-import { IsBoolean, IsMongoId, IsOptional, IsString, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsBoolean, IsIn, IsMongoId, IsOptional, IsString, MinLength, ValidateNested } from 'class-validator';
+
+class HistoricoItemDto {
+  @IsIn(['user', 'assistant'])
+  role: 'user' | 'assistant';
+
+  @IsString()
+  texto: string;
+}
 
 export class CopilotoDto {
   @IsOptional()
@@ -12,4 +21,10 @@ export class CopilotoDto {
   @IsOptional()
   @IsBoolean()
   buscar_jurisprudencia?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => HistoricoItemDto)
+  historico?: HistoricoItemDto[];
 }

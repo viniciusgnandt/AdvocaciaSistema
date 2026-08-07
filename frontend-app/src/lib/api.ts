@@ -1173,6 +1173,55 @@ export async function gerarDocumentoIa(dto: {
   return res.json();
 }
 
-export function perguntarCopilotoIa(dto: { pergunta: string; processo_id?: string; buscar_jurisprudencia?: boolean }) {
+export type HistoricoCopiloto = { role: 'user' | 'assistant'; texto: string };
+
+export function perguntarCopilotoIa(dto: {
+  pergunta: string;
+  processo_id?: string;
+  buscar_jurisprudencia?: boolean;
+  historico?: HistoricoCopiloto[];
+}) {
   return request<{ resposta: string }>('/ia/copiloto', { method: 'POST', body: JSON.stringify(dto) });
+}
+
+export function resumoProcessoIa(processoId: string, regenerar?: boolean) {
+  return request<{ resumo: string; gerado_em: string }>(
+    `/ia/resumo-processo/${processoId}${regenerar ? '?regenerar=true' : ''}`,
+  );
+}
+
+export function sugerirTarefasIa(processoId: string) {
+  return request<{ sugestoes: string[] }>(`/ia/sugerir-tarefas/${processoId}`);
+}
+
+export async function revisarDocumentoIa(arquivo: File, processoId?: string): Promise<{ revisao: string }> {
+  const form = new FormData();
+  form.append('arquivo', arquivo);
+  if (processoId) form.append('processo_id', processoId);
+  const token = getToken();
+  const res = await fetch(`${API_URL}/ia/revisar-documento`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: form,
+  });
+  if (!res.ok) throw new Error(`Falha ao revisar documento (${res.status})`);
+  return res.json();
+}
+
+export type ModeloDocumentoIa = { _id: string; nome: string; tipo_documento: string; created_at: string };
+
+export function listarModelosIa(tipo?: string) {
+  return request<ModeloDocumentoIa[]>(`/ia/modelos${tipo ? `?tipo=${encodeURIComponent(tipo)}` : ''}`);
+}
+
+export function obterModeloIa(id: string) {
+  return request<ModeloDocumentoIa & { conteudo: string }>(`/ia/modelos/${id}`);
+}
+
+export function salvarModeloIa(dto: { nome: string; tipo_documento: string; conteudo: string }) {
+  return request<ModeloDocumentoIa>('/ia/modelos', { method: 'POST', body: JSON.stringify(dto) });
+}
+
+export function excluirModeloIa(id: string) {
+  return request<{ ok: boolean }>(`/ia/modelos/${id}`, { method: 'DELETE' });
 }

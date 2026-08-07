@@ -62,6 +62,7 @@ import { BotaoFavorito } from '@/components/common/BotaoFavorito';
 import { useFavoritos } from '@/lib/useFavoritos';
 import { ModoApresentacao } from '@/components/processos/ModoApresentacao';
 import { CopilotoIaModal } from '@/components/processos/CopilotoIaModal';
+import { ResumoIaCard } from '@/components/processos/ResumoIaCard';
 import { ComparadorProcessos } from '@/components/processos/ComparadorProcessos';
 import { gerarCapaProcesso } from '@/lib/capaProcesso';
 import { BotaoExportar } from '@/components/ui/BotaoExportar';
@@ -609,7 +610,10 @@ function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtu
 
         <div className="pt-5">
           {aba === 'timeline' && (
-            <TimelineProcesso numeroProcesso={processo.numero_cnj} movimentacoes={processo.movimentacoes} />
+            <>
+              <ResumoIaCard processoId={processo._id} />
+              <TimelineProcesso numeroProcesso={processo.numero_cnj} movimentacoes={processo.movimentacoes} />
+            </>
           )}
 
           {aba === 'movimentacoes' && (
@@ -663,7 +667,9 @@ function DetalheProcesso({ processo, onAtualizado }: { processo: Processo; onAtu
         />
       )}
 
-      {copilotoAberto && <CopilotoIaModal processoId={processo._id} onFechar={() => setCopilotoAberto(false)} />}
+      {copilotoAberto && (
+        <CopilotoIaModal processoId={processo._id} numeroCnj={processo.numero_cnj} onFechar={() => setCopilotoAberto(false)} />
+      )}
     </div>
   );
 }
