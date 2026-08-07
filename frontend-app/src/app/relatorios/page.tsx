@@ -276,11 +276,60 @@ function CategoriaDropdown({ categoria, onChange }: { categoria: Categoria; onCh
   );
 }
 
+/** Conta quantas datas caem em cada um dos ultimos N meses (default 6), do mais antigo pro
+ * mais recente - usado pra montar a sparkline de tendencia mensal dos KPIs. */
+function serieUltimosMeses(datas: (string | undefined)[], meses = 6): number[] {
+  const agora = new Date();
+  const chaves = Array.from({ length: meses }, (_, i) => {
+    const d = new Date(agora.getFullYear(), agora.getMonth() - (meses - 1 - i), 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const contagem = new Map(chaves.map((c) => [c, 0]));
+  for (const data of datas) {
+    if (!data) continue;
+    const chave = data.slice(0, 7);
+    if (contagem.has(chave)) contagem.set(chave, (contagem.get(chave) ?? 0) + 1);
+  }
+  return chaves.map((c) => contagem.get(c) ?? 0);
+}
+
 function KpiGrid({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">{children}</div>;
 }
 
-function Kpi({ icon: Icon, label, value, tone = 'default' }: { icon: typeof Gavel; label: string; value: string | number; tone?: 'default' | 'brand' | 'warning' | 'danger' | 'success' }) {
+function Sparkline({ serie, cor = '#1f6664' }: { serie: number[]; cor?: string }) {
+  if (serie.length < 2) return null;
+  const largura = 56;
+  const altura = 24;
+  const max = Math.max(...serie, 1);
+  const min = Math.min(...serie, 0);
+  const amplitude = max - min || 1;
+  const passo = largura / (serie.length - 1);
+  const pontos = serie.map((v, i) => `${i * passo},${altura - ((v - min) / amplitude) * (altura - 4) - 2}`).join(' ');
+  const ultimoX = (serie.length - 1) * passo;
+  const ultimoY = altura - ((serie[serie.length - 1] - min) / amplitude) * (altura - 4) - 2;
+
+  return (
+    <svg width={largura} height={altura} viewBox={`0 0 ${largura} ${altura}`} className="shrink-0" aria-hidden>
+      <polyline points={pontos} fill="none" stroke={cor} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.7} />
+      <circle cx={ultimoX} cy={ultimoY} r={2} fill={cor} />
+    </svg>
+  );
+}
+
+function Kpi({
+  icon: Icon,
+  label,
+  value,
+  tone = 'default',
+  serie,
+}: {
+  icon: typeof Gavel;
+  label: string;
+  value: string | number;
+  tone?: 'default' | 'brand' | 'warning' | 'danger' | 'success';
+  serie?: number[];
+}) {
   const toneClasses = {
     default: 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400',
     brand: 'bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400',
@@ -294,10 +343,11 @@ function Kpi({ icon: Icon, label, value, tone = 'default' }: { icon: typeof Gave
       <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0', toneClasses)}>
         <Icon size={16} />
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight truncate">{value}</p>
         <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{label}</p>
       </div>
+      {serie && <Sparkline serie={serie} />}
     </div>
   );
 }
@@ -384,6 +434,8 @@ function RelatorioProcessos({ processos }: { processos: Processo[] }) {
     return { total, ativos, suspensos, encerrados, arquivados, novosEsteMes, valorTotal, ticketMedio, comAudiencia, provisorios };
   }, [processos]);
 
+  const serieMensal = useMemo(() => serieUltimosMeses(processos.map((p) => p.data_ajuizamento)), [processos]);
+
   const porStatus = useMemo(() => {
     const contagem = new Map<string, number>();
     processos.forEach((p) => contagem.set(p.status, (contagem.get(p.status) ?? 0) + 1));
@@ -435,7 +487,7 @@ function RelatorioProcessos({ processos }: { processos: Processo[] }) {
       <InsightsPanel insights={insights} />
 
       <KpiGrid>
-        <Kpi icon={Gavel} label="Total de processos" value={kpis.total} tone="brand" />
+        <Kpi icon={Gavel} label="Total de processos" value={kpis.total} tone="brand" serie={serieMensal} />
         <Kpi icon={TrendingUp} label="Ativos" value={kpis.ativos} tone="success" />
         <Kpi icon={Clock} label="Suspensos" value={kpis.suspensos} tone="warning" />
         <Kpi icon={CheckSquare} label="Encerrados" value={kpis.encerrados} />
@@ -693,6 +745,8 @@ function RelatorioTarefas({ tarefas, usuarios }: { tarefas: Tarefa[]; usuarios: 
     return { total, concluidas, atrasadas, emAberto, taxaConclusao, criticasAbertas, vencendoSemana, semResponsavel, topResponsavel, mediaAbertas };
   }, [tarefas, nomePorId]);
 
+  const serieMensal = useMemo(() => serieUltimosMeses(tarefas.map((t) => t.data_vencimento)), [tarefas]);
+
   const porResponsavel = useMemo(() => {
     const contagem = new Map<string, { concluidas: number; pendentes: number }>();
     tarefas.forEach((t) => {
@@ -727,7 +781,7 @@ function RelatorioTarefas({ tarefas, usuarios }: { tarefas: Tarefa[]; usuarios: 
       <InsightsPanel insights={insights} />
 
       <KpiGrid>
-        <Kpi icon={ListChecks} label="Total de tarefas" value={kpis.total} tone="brand" />
+        <Kpi icon={ListChecks} label="Total de tarefas" value={kpis.total} tone="brand" serie={serieMensal} />
         <Kpi icon={CheckSquare} label="Concluídas" value={kpis.concluidas} tone="success" />
         <Kpi icon={Clock} label="Em aberto" value={kpis.emAberto} />
         <Kpi icon={AlertTriangle} label="Atrasadas" value={kpis.atrasadas} tone="warning" />
