@@ -20,6 +20,7 @@ import {
   Pencil,
   Phone,
   Plus,
+  ScrollText,
   Search,
   Share2,
   Star,
@@ -28,6 +29,7 @@ import {
   X,
 } from 'lucide-react';
 import { Topbar } from '@/components/layout/Topbar';
+import { gerarCertidaoNadaConsta } from '@/lib/certidao';
 import {
   ativarPortalCliente,
   atualizarCliente,
@@ -426,12 +428,20 @@ function ClientesPageConteudo() {
                   }}
                 />
 
-                <button
-                  onClick={() => setModalProcuracao(true)}
-                  className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-800 rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 w-fit"
-                >
-                  <FileSignature size={14} /> Gerar procuração
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setModalProcuracao(true)}
+                    className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-800 rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 w-fit"
+                  >
+                    <FileSignature size={14} /> Gerar procuração
+                  </button>
+                  <button
+                    onClick={() => gerarCertidaoNadaConsta(selecionado, processos)}
+                    className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-800 rounded-lg px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 w-fit"
+                  >
+                    <ScrollText size={14} /> Emitir certidão
+                  </button>
+                </div>
 
                 <div id="secao-processos-vinculados">
                   <div className="flex items-center justify-between mb-3">
