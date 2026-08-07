@@ -474,6 +474,8 @@ export type DocumentoProcesso = {
   mime: string;
   tamanho_bytes: number;
   created_at: string;
+  data_validade?: string;
+  numero_processo?: string;
 };
 
 /** Escopo de arquivos: um processo OU um cliente (documentos do cliente nascem antes
@@ -492,6 +494,14 @@ export function listarDocumentos(
   if (opcoes.movimentacaoChave) params.set('movimentacaoChave', opcoes.movimentacaoChave);
   if (opcoes.pastaId !== undefined) params.set('pastaId', opcoes.pastaId);
   return request<DocumentoProcesso[]>(`/documentos?${params.toString()}`);
+}
+
+export function atualizarValidadeDocumento(id: string, dataValidade: string) {
+  return request<DocumentoProcesso>(`/documentos/${id}`, { method: 'PATCH', body: JSON.stringify({ data_validade: dataValidade }) });
+}
+
+export function listarDocumentosVencendo(dias = 30) {
+  return request<DocumentoProcesso[]>(`/documentos/vencendo?dias=${dias}`);
 }
 
 export type Pasta = { _id: string; nome: string; pasta_pai_id?: string };

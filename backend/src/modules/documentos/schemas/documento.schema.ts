@@ -43,8 +43,14 @@ export class Documento extends Document {
 
   @Prop({ type: Types.ObjectId })
   enviado_por?: Types.ObjectId;
+
+  // validade opcional (procuracao, contrato, certidao...) - usada pelo alerta de
+  // documento vencendo no sino de notificacoes
+  @Prop()
+  data_validade?: string;
 }
 
 export const DocumentoSchema = SchemaFactory.createForClass(Documento);
 DocumentoSchema.index({ tenant_id: 1, processo_id: 1 });
 DocumentoSchema.index({ tenant_id: 1, numero_processo: 1 });
+DocumentoSchema.index({ tenant_id: 1, data_validade: 1 });

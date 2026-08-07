@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronRight, Download, File, FolderOpen, FolderPlus, Home, Mail, Paperclip, Plus, Trash2, X } from 'lucide-react';
+import { CalendarClock, ChevronRight, Download, File, FolderOpen, FolderPlus, Home, Mail, Paperclip, Plus, Trash2, X } from 'lucide-react';
 import {
+  atualizarValidadeDocumento,
   baixarDocumento,
   criarPasta,
   enviarDocumento,
@@ -14,6 +15,7 @@ import {
   type EscopoArquivos,
   type Pasta,
 } from '@/lib/api';
+import { cn } from '@/lib/cn';
 
 function formatarTamanho(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -108,6 +110,23 @@ export function ArquivosProcesso({ escopo }: { escopo: EscopoArquivos }) {
     }
   };
 
+  const handleDefinirValidade = async (documento: DocumentoProcesso) => {
+    const atual = documento.data_validade ?? '';
+    const resposta = window.prompt('Data de validade (AAAA-MM-DD), deixe em branco para remover:', atual);
+    if (resposta === null) return;
+    const novaData = resposta.trim();
+    if (novaData && !/^\d{4}-\d{2}-\d{2}$/.test(novaData)) {
+      setErro('Data inválida — use o formato AAAA-MM-DD.');
+      return;
+    }
+    try {
+      const atualizado = await atualizarValidadeDocumento(documento._id, novaData);
+      setArquivos((atual2) => atual2.map((d) => (d._id === documento._id ? atualizado : d)));
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'erro ao definir validade');
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
@@ -190,7 +209,26 @@ export function ArquivosProcesso({ escopo }: { escopo: EscopoArquivos }) {
                 <File size={14} className="text-gray-400 shrink-0" />
               )}
               <span className="flex-1 min-w-0 truncate text-gray-700 dark:text-gray-300">{d.nome}</span>
+              {d.data_validade && (
+                <span
+                  className={cn(
+                    'text-[10px] px-1.5 py-0.5 rounded-full shrink-0',
+                    new Date(d.data_validade) < new Date()
+                      ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                      : 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
+                  )}
+                >
+                  validade {new Date(`${d.data_validade}T00:00:00`).toLocaleDateString('pt-BR')}
+                </span>
+              )}
               <span className="text-xs text-gray-400 shrink-0">{formatarTamanho(d.tamanho_bytes)}</span>
+              <button
+                onClick={() => handleDefinirValidade(d)}
+                className="p-1 rounded text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 shrink-0"
+                title="Definir validade"
+              >
+                <CalendarClock size={14} />
+              </button>
               <button
                 onClick={() => handleDownload(d)}
                 className="p-1 rounded text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 shrink-0"

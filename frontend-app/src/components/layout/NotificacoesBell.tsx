@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, Bell, CheckSquare, Gavel } from 'lucide-react';
-import { listarPublicacoes, listarProcessos, listarTarefas, type Publicacao, type Tarefa } from '@/lib/api';
+import { AlertTriangle, Bell, CalendarClock, CheckSquare, Gavel } from 'lucide-react';
+import { listarDocumentosVencendo, listarPublicacoes, listarProcessos, listarTarefas, type Publicacao, type Tarefa } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
 type Notificacao = {
   id: string;
-  tipo: 'publicacao' | 'tarefa' | 'processo_esquecido';
+  tipo: 'publicacao' | 'tarefa' | 'processo_esquecido' | 'documento_vencendo';
   titulo: string;
   subtitulo: string;
   destino: string;
@@ -18,10 +18,11 @@ type Notificacao = {
 const DIAS_PROCESSO_ESQUECIDO = 60;
 
 async function carregarNotificacoes(): Promise<Notificacao[]> {
-  const [publicacoesResp, tarefas, processosResp] = await Promise.all([
+  const [publicacoesResp, tarefas, processosResp, documentosVencendo] = await Promise.all([
     listarPublicacoes({ status: 'nao_lida', urgencia: 'critica', limite: 8 }),
     listarTarefas({ atrasadas: true }),
     listarProcessos({ status: 'ativo' }),
+    listarDocumentosVencendo(30).catch(() => []),
   ]);
 
   const doPublicacoes: Notificacao[] = publicacoesResp.itens.map((p: Publicacao) => ({
@@ -60,7 +61,21 @@ async function carregarNotificacoes(): Promise<Notificacao[]> {
       critica: false,
     }));
 
-  return [...doPublicacoes, ...doProcessosEsquecidos, ...doTarefas];
+  const doDocumentosVencendo: Notificacao[] = documentosVencendo.map((d) => {
+    const vencido = new Date(d.data_validade!) < new Date();
+    return {
+      id: `doc-${d._id}`,
+      tipo: 'documento_vencendo' as const,
+      titulo: d.nome,
+      subtitulo: vencido
+        ? `Venceu em ${new Date(`${d.data_validade}T00:00:00`).toLocaleDateString('pt-BR')}`
+        : `Vence em ${new Date(`${d.data_validade}T00:00:00`).toLocaleDateString('pt-BR')}`,
+      destino: d.numero_processo ? `/processos?numero=${d.numero_processo}` : '/clientes',
+      critica: vencido,
+    };
+  });
+
+  return [...doPublicacoes, ...doProcessosEsquecidos, ...doDocumentosVencendo, ...doTarefas];
 }
 
 export function NotificacoesBell() {
@@ -133,6 +148,8 @@ export function NotificacoesBell() {
                       <AlertTriangle size={12} />
                     ) : n.tipo === 'processo_esquecido' ? (
                       <Gavel size={12} />
+                    ) : n.tipo === 'documento_vencendo' ? (
+                      <CalendarClock size={12} />
                     ) : (
                       <CheckSquare size={12} />
                     )}

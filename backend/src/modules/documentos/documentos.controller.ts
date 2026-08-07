@@ -1,9 +1,11 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
   Headers,
   Param,
+  Patch,
   Post,
   Query,
   UploadedFile,
@@ -87,6 +89,35 @@ export class DocumentosController {
       filtro.pasta_id = pastaId ? new Types.ObjectId(pastaId) : { $exists: false };
     }
     return this.documentoModel.find(filtro).sort({ created_at: -1 }).exec();
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Atualiza a data de validade de um documento (procuracao, contrato, certidao etc.)' })
+  async atualizar(
+    @Headers('x-tenant-id') tenantId: string,
+    @Param('id') id: string,
+    @Body() dto: { data_validade?: string },
+  ) {
+    const documento = await this.documentoModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(id), tenant_id: new Types.ObjectId(tenantId) },
+      dto.data_validade ? { $set: { data_validade: dto.data_validade } } : { $unset: { data_validade: '' } },
+      { new: true },
+    );
+    if (!documento) return { erro: 'documento nao encontrado' };
+    return documento;
+  }
+
+  @Get('vencendo')
+  @ApiOperation({ summary: 'Lista documentos com validade vencida ou vencendo nos proximos N dias (default 30)' })
+  async vencendo(@Headers('x-tenant-id') tenantId: string, @Query('dias') dias?: string) {
+    const janela = new Date();
+    janela.setDate(janela.getDate() + Number(dias ?? 30));
+    const limite = janela.toISOString().slice(0, 10);
+    return this.documentoModel
+      .find({ tenant_id: new Types.ObjectId(tenantId), data_validade: { $exists: true, $ne: null, $lte: limite } })
+      .sort({ data_validade: 1 })
+      .limit(20)
+      .exec();
   }
 
   @Get(':id/download')
