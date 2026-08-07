@@ -59,6 +59,7 @@ import {
   type Usuario,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { corAvatarUsuario } from '@/lib/corUsuario';
 
 const CORES = ['#2563eb', '#16a34a', '#f59e0b', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#65a30d'];
 
@@ -999,7 +1000,7 @@ function RelatorioEquipe({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={usuario.foto_url} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
                     ) : (
-                      <div className="w-6 h-6 rounded-full bg-brand-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                      <div className={cn('w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0', corAvatarUsuario(usuario.nome))}>
                         {usuario.nome.charAt(0).toUpperCase()}
                       </div>
                     )}

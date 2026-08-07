@@ -34,6 +34,7 @@ import {
   type Usuario,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { corAvatarUsuario } from '@/lib/corUsuario';
 import { mascararCnjDigitando, validarCnj } from '@/lib/cnj';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { toast } from '@/lib/toast';
@@ -353,7 +354,10 @@ export default function TarefasPage() {
                           {t.responsavel_id && nomeResponsavel(t.responsavel_id) && (
                             <span
                               title={nomeResponsavel(t.responsavel_id)}
-                              className="w-5 h-5 rounded-full bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 text-[9px] font-bold flex items-center justify-center shrink-0"
+                              className={cn(
+                                'w-5 h-5 rounded-full text-white text-[9px] font-bold flex items-center justify-center shrink-0',
+                                corAvatarUsuario(nomeResponsavel(t.responsavel_id)!),
+                              )}
                             >
                               {iniciais(nomeResponsavel(t.responsavel_id)!)}
                             </span>

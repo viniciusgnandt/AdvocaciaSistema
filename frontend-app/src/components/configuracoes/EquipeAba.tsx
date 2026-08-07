@@ -26,6 +26,7 @@ import {
   type Usuario,
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { corAvatarUsuario } from '@/lib/corUsuario';
 
 const LABEL_PERFIL: Record<PerfilUsuario, string> = { admin: 'Admin', advogado: 'Advogado(a)', assistente: 'Assistente' };
 
@@ -176,7 +177,7 @@ function UsuariosLista() {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={u.foto_url} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
                       ) : (
-                        <div className="w-6 h-6 rounded-full bg-brand-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                        <div className={cn('w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0', corAvatarUsuario(u.nome))}>
                           {u.nome.charAt(0).toUpperCase()}
                         </div>
                       )}
