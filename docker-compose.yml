@@ -27,6 +27,7 @@ services:
       - OCI_REGION=${OCI_REGION}
       - OCI_ACCESS_KEY_ID=${OCI_ACCESS_KEY_ID}
       - OCI_SECRET_ACCESS_KEY=${OCI_SECRET_ACCESS_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     networks:
       - trilva_net
 
