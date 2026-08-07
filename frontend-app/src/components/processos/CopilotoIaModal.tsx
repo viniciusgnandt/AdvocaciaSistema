@@ -15,7 +15,7 @@ import {
   type HistoricoCopiloto,
   type ModeloDocumentoIa,
 } from '@/lib/api';
-import { montarPdfTexto } from '@/lib/exportar';
+import { montarDocxTexto } from '@/lib/exportar';
 import { toast } from '@/lib/toast';
 
 const TIPOS_DOCUMENTO = [
@@ -161,17 +161,23 @@ export function CopilotoIaModal({
     }
   };
 
-  const baixarComoPdf = async (texto: string, titulo: string) => {
-    const doc = await montarPdfTexto(titulo, texto);
-    doc.save(`${titulo}.pdf`);
+  const baixarComoDocx = async (texto: string, titulo: string) => {
+    const blob = await montarDocxTexto(titulo, texto);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${titulo}.docx`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const salvarComoDocumentoDoProcesso = async (texto: string, titulo: string) => {
     if (!numeroCnj) return;
     try {
-      const doc = await montarPdfTexto(titulo, texto);
-      const blob = doc.output('blob') as Blob;
-      const arquivo = new File([blob], `${titulo}.pdf`, { type: 'application/pdf' });
+      const blob = await montarDocxTexto(titulo, texto);
+      const arquivo = new File([blob], `${titulo}.docx`, {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
       await enviarDocumento({ numeroProcesso: numeroCnj }, arquivo);
       toast('Documento salvo na aba Arquivos do processo');
     } catch {
@@ -504,9 +510,9 @@ export function CopilotoIaModal({
             <div className="rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/40 p-3 relative">
               <div className="absolute top-2 right-2 flex gap-1">
                 <button
-                  onClick={() => baixarComoPdf(textoDocumento, tipoDocumento)}
+                  onClick={() => baixarComoDocx(textoDocumento, tipoDocumento)}
                   className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-white dark:hover:bg-gray-800"
-                  title="Baixar PDF"
+                  title="Baixar Word (.docx)"
                 >
                   <FileDown size={14} />
                 </button>

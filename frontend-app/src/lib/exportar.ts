@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
 import { buscarTenant } from './api';
 
 export function exportarExcel(linhas: Record<string, string | number>[], nomeArquivo: string) {
@@ -180,4 +181,49 @@ export async function montarPdfTexto(titulo: string, texto: string): Promise<jsP
   }
 
   return doc;
+}
+
+/** Considera "titulo de secao" uma linha curta e majoritariamente em maiusculas
+ * (convencao usada em pecas processuais brasileiras, ex.: "DOS PEDIDOS"). */
+function pareceTituloDeSecao(linha: string): boolean {
+  const texto = linha.trim();
+  if (texto.length < 3 || texto.length > 100) return false;
+  const letras = texto.replace(/[^A-Za-zÀ-ÿ]/g, '');
+  if (letras.length < 3) return false;
+  return letras === letras.toUpperCase();
+}
+
+/** Monta um .docx de texto corrido (minutas geradas pelo Copiloto IA), editavel
+ * pelo advogado - sem marca d'agua e sem cabecalho de identidade visual do
+ * escritorio, ja que o destino e edicao/protocolo e nao apresentacao. Titulos de
+ * secao em maiusculas viram paragrafos em negrito. */
+export async function montarDocxTexto(titulo: string, texto: string): Promise<Blob> {
+  const paragrafosTexto = texto.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+
+  const paragrafos = [
+    new Paragraph({
+      children: [new TextRun({ text: titulo, bold: true, size: 28 })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 300 },
+    }),
+    ...paragrafosTexto.map((linha) =>
+      pareceTituloDeSecao(linha)
+        ? new Paragraph({
+            children: [new TextRun({ text: linha, bold: true })],
+            spacing: { before: 300, after: 150 },
+          })
+        : new Paragraph({
+            children: [new TextRun({ text: linha })],
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { after: 200, line: 360 },
+            indent: { firstLine: 700 },
+          }),
+    ),
+  ];
+
+  const documento = new Document({
+    sections: [{ children: paragrafos }],
+  });
+
+  return Packer.toBlob(documento);
 }

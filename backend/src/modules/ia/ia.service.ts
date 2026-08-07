@@ -290,14 +290,18 @@ export class IaService {
       'documento solicitado, pronto para revisao por um advogado - sem comentarios sobre o que ' +
       'voce fez, sem markdown, sem disclaimers. Use [placeholders entre colchetes] para qualquer ' +
       'dado que voce nao tenha e que precise ser preenchido manualmente. Quando um modelo de ' +
-      'referencia for fornecido, siga a mesma estrutura, secoes e tom do modelo, adaptando o ' +
-      'conteudo para o caso descrito - nao copie dados do modelo que nao se apliquem ao caso atual. ' +
+      'referencia for fornecido, siga RIGOROSAMENTE a mesma estrutura do modelo: reproduza os ' +
+      'mesmos titulos de secao, na mesma ordem e com a mesma formatacao (ex.: titulos em ' +
+      'maiusculas em linha propria), incluindo cabecalho de enderecamento, secoes intermediarias ' +
+      'e o fechamento (pedidos, valor da causa, local/data, fecho de assinatura) se presentes no ' +
+      'modelo - nao encurte nem omita secoes do modelo, apenas adapte o conteudo de cada secao ' +
+      'para o caso descrito, sem copiar dados do modelo que nao se apliquem ao caso atual. ' +
       'Quando o contexto do cliente incluir CPF/CNPJ e endereco, use esses dados na qualificacao das ' +
       'partes se o documento exigir (ex.: peticao inicial).';
 
     const resposta = await this.client.messages.create({
       model: 'claude-sonnet-5',
-      max_tokens: 4096,
+      max_tokens: 8192,
       thinking: { type: 'disabled' },
       system: [
         { type: 'text', text: instrucaoBase, cache_control: { type: 'ephemeral' } },
