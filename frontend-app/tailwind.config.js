@@ -5,17 +5,20 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // paleta autoral (petroleo/teal escuro) - substitui o azul generico do Tailwind
+        // para dar identidade visual propria ao Trilva, mantendo a mesma confiabilidade
+        // "profissional" que o azul transmitia
         brand: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          50: '#eef6f6',
+          100: '#d3e9e8',
+          200: '#a8d3d1',
+          300: '#74b6b3',
+          400: '#439795',
+          500: '#2a7d7b',
+          600: '#1f6664',
+          700: '#1a5250',
+          800: '#174241',
+          900: '#143735',
         },
       },
       keyframes: {

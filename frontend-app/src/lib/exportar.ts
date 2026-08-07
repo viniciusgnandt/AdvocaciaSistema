@@ -69,7 +69,7 @@ export async function exportarPdf(titulo: string, colunas: string[], linhas: (st
     body: linhas,
     startY: cursorY + 5,
     styles: { fontSize: 8 },
-    headStyles: { fillColor: [37, 99, 235] },
+    headStyles: { fillColor: [31, 102, 100] },
   });
 
   const totalPaginas = doc.getNumberOfPages();
