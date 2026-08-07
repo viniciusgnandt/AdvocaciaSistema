@@ -544,6 +544,7 @@ export type Cliente = {
   origem_lead?: string;
   endereco?: Endereco;
   indicado_por_id?: string;
+  vip?: boolean;
   portal_ativo?: boolean;
   portal_token?: string;
   updated_at?: string;
@@ -654,7 +655,7 @@ export function verificarDuplicidadeCliente(dados: { nome?: string; cpf?: string
 
 export function atualizarCliente(
   id: string,
-  dto: Partial<NovoCliente & { status: Cliente['status']; versao_esperada: string }>,
+  dto: Partial<NovoCliente & { status: Cliente['status']; vip: boolean; versao_esperada: string }>,
 ) {
   return request<Cliente>(`/clientes/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
 }

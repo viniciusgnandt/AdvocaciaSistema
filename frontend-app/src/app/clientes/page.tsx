@@ -7,6 +7,7 @@ import {
   Cake,
   Check,
   Copy,
+  Crown,
   Download,
   FileSignature,
   FileText,
@@ -182,6 +183,19 @@ function ClientesPageConteudo() {
     window.open(url, '_blank', 'noopener');
   };
 
+  const handleAlternarVip = async () => {
+    if (!selecionado) return;
+    const novoVip = !selecionado.vip;
+    setSelecionado({ ...selecionado, vip: novoVip });
+    setClientes((atual) => atual.map((c) => (c._id === selecionado._id ? { ...c, vip: novoVip } : c)));
+    try {
+      await atualizarCliente(selecionado._id, { vip: novoVip });
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'erro ao atualizar VIP');
+      carregar();
+    }
+  };
+
   const handleExcluir = async () => {
     if (!selecionado) return;
     if (!window.confirm(`Excluir "${selecionado.nome}"? Os processos vinculados não serão apagados.`)) return;
@@ -272,6 +286,7 @@ function ClientesPageConteudo() {
                 .filter((c) => !somenteFavoritos || ehFavorito('cliente', c._id))
                 .filter((c) => !somenteInativos || c.status === 'inativo')
                 .sort((a, b) => Number(ehFavorito('cliente', b._id)) - Number(ehFavorito('cliente', a._id)))
+                .sort((a, b) => Number(b.vip ?? false) - Number(a.vip ?? false))
                 .map((c) => (
                 <li
                   key={c._id}
@@ -286,6 +301,7 @@ function ClientesPageConteudo() {
                 >
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate flex items-center gap-1.5">
                     <span className="truncate flex-1">{c.nome}</span>
+                    {c.vip && <Crown size={13} className="text-amber-500 shrink-0" fill="currentColor" />}
                     {c.status === 'inativo' && (
                       <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
                         inativo
@@ -323,10 +339,27 @@ function ClientesPageConteudo() {
                     {selecionado.nome.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{selecionado.nome}</p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                      {selecionado.nome}
+                      {selecionado.vip && (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                          <Crown size={10} fill="currentColor" /> VIP
+                        </span>
+                      )}
+                    </p>
                     <p className="text-sm text-gray-400">{selecionado.tipo === 'pf' ? 'Pessoa física' : 'Pessoa jurídica'}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={handleAlternarVip}
+                      className={cn(
+                        'p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800',
+                        selecionado.vip ? 'text-amber-500' : 'text-gray-400 hover:text-amber-500',
+                      )}
+                      title={selecionado.vip ? 'Remover selo VIP' : 'Marcar como VIP'}
+                    >
+                      <Crown size={15} fill={selecionado.vip ? 'currentColor' : 'none'} />
+                    </button>
                     <button
                       onClick={() => setModal('editar')}
                       className="p-2 rounded-lg text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-gray-50 dark:hover:bg-gray-800"

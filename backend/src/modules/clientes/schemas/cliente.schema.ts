@@ -75,6 +75,9 @@ export class Cliente extends Document {
 
   @Prop({ default: false })
   portal_ativo: boolean;
+
+  @Prop({ default: false })
+  vip: boolean;
 }
 
 export const ClienteSchema = SchemaFactory.createForClass(Cliente);
