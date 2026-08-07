@@ -243,6 +243,58 @@ function proximosAniversarios(clientes: Cliente[]) {
     .sort((a, b) => a.diasAte - b.diasAte);
 }
 
+function saudacao() {
+  const hora = new Date().getHours();
+  if (hora < 12) return 'Bom dia';
+  if (hora < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
+
+function HeroDashboard({
+  nome,
+  loading,
+  tarefasAtrasadas,
+  naoLidas,
+  totalProcessosAtivos,
+}: {
+  nome: string;
+  loading: boolean;
+  tarefasAtrasadas: number;
+  naoLidas: number;
+  totalProcessosAtivos: number;
+}) {
+  const dataExtenso = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+  const destaque = !loading && tarefasAtrasadas > 0
+    ? `${tarefasAtrasadas} tarefa${tarefasAtrasadas === 1 ? '' : 's'} atrasada${tarefasAtrasadas === 1 ? '' : 's'} pedindo atenção.`
+    : !loading && naoLidas > 0
+      ? `${naoLidas} publicaç${naoLidas === 1 ? 'ão' : 'ões'} não lida${naoLidas === 1 ? '' : 's'} esperando.`
+      : 'Tudo em dia por aqui.';
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-700 via-brand-600 to-brand-800 px-6 py-7 text-white">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.08]"
+        style={{ backgroundImage: 'radial-gradient(currentColor 1.5px, transparent 1.5px)', backgroundSize: '18px 18px' }}
+      />
+      <div className="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-wider text-brand-100/80 capitalize">{dataExtenso}</p>
+          <p className="mt-1 text-2xl sm:text-3xl font-semibold">
+            {saudacao()}{nome ? `, ${nome}` : ''}
+          </p>
+          <p className="mt-1.5 text-sm text-brand-50/90">{destaque}</p>
+        </div>
+        <div className="shrink-0 flex items-center gap-2 text-sm">
+          <span className="rounded-lg bg-white/10 px-3 py-1.5 backdrop-blur-sm">
+            {loading ? '—' : totalProcessosAtivos} processos ativos
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const PRIORIDADE_COR: Record<string, string> = {
   baixa: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300',
   media: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
@@ -307,7 +359,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Topbar titulo="Dashboard" subtitulo={nome ? `Bom te ver de volta, ${nome}` : 'Visão geral do escritório'} />
+      <Topbar titulo="Dashboard" subtitulo="Visão geral do escritório" />
 
       <main className="relative flex-1 px-6 py-6 space-y-6">
         <div
@@ -320,6 +372,14 @@ export default function DashboardPage() {
             {erro}
           </div>
         )}
+
+        <HeroDashboard
+          nome={nome}
+          loading={loading}
+          tarefasAtrasadas={tarefasAtrasadas}
+          naoLidas={resumo?.naoLidas ?? 0}
+          totalProcessosAtivos={totalProcessosAtivos}
+        />
 
         {!loading && <ResumoSemanal tarefas={tarefas} lancamentos={lancamentos} />}
 
