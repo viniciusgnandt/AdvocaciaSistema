@@ -115,7 +115,7 @@ export function NotificacoesBell() {
       >
         <Bell size={17} />
         {total > 0 && (
-          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 border border-white dark:border-gray-900" />
+          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-critical-500 border border-white dark:border-gray-900" />
         )}
       </button>
 
@@ -141,7 +141,7 @@ export function NotificacoesBell() {
                   <span
                     className={cn(
                       'mt-0.5 w-6 h-6 rounded-full flex items-center justify-center shrink-0',
-                      n.critica ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
+                      n.critica ? 'bg-critical-50 dark:bg-critical-900/30 text-critical-600 dark:text-critical-400' : 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
                     )}
                   >
                     {n.tipo === 'publicacao' ? (

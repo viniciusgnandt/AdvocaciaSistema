@@ -20,6 +20,21 @@ module.exports = {
           800: '#174241',
           900: '#143735',
         },
+        // acento secundario para acoes/estados criticos (prazo critico, urgencia maxima,
+        // excluir) - um vermelho-escarlate mais quente que o "red" padrao do Tailwind,
+        // para nao competir visualmente com o teal da marca
+        critical: {
+          50: '#fef2f1',
+          100: '#fde2df',
+          200: '#fbc9c3',
+          300: '#f5a599',
+          400: '#ea7862',
+          500: '#dc5638',
+          600: '#c23f22',
+          700: '#a2311a',
+          800: '#852c1b',
+          900: '#6f2a1c',
+        },
       },
       keyframes: {
         fadeIn: { from: { opacity: 0 }, to: { opacity: 1 } },

@@ -46,7 +46,7 @@ const PRIORIDADE_COR: Record<string, string> = {
   baixa: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700',
   media: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
   alta: 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800',
-  critica: 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800',
+  critica: 'bg-critical-50 dark:bg-critical-900/30 text-critical-700 dark:text-critical-300 border-critical-200 dark:border-critical-800',
 };
 
 const COLUNAS: { status: StatusTarefa; titulo: string; corPonto: string }[] = [
