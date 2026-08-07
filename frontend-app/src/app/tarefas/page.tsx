@@ -417,6 +417,7 @@ export default function TarefasPage() {
       {modalAberto && (
         <TarefaModal
           usuarios={usuarios}
+          tarefas={tarefas}
           onFechar={() => setModalAberto(false)}
           onSalva={() => {
             setModalAberto(false);
@@ -429,6 +430,7 @@ export default function TarefasPage() {
         <TarefaModal
           tarefa={tarefaEditando}
           usuarios={usuarios}
+          tarefas={tarefas}
           onFechar={() => setTarefaEditando(null)}
           onSalva={() => {
             setTarefaEditando(null);
@@ -447,16 +449,28 @@ export default function TarefasPage() {
 function TarefaModal({
   tarefa,
   usuarios,
+  tarefas,
   onFechar,
   onSalva,
   onExcluir,
 }: {
   tarefa?: Tarefa;
   usuarios: Usuario[];
+  tarefas: Tarefa[];
   onFechar: () => void;
   onSalva: () => void;
   onExcluir?: () => void;
 }) {
+  const cargaPorUsuario = new Map<string, number>();
+  for (const t of tarefas) {
+    if (t.status === 'concluida') continue;
+    if (t.responsavel_id) cargaPorUsuario.set(t.responsavel_id, (cargaPorUsuario.get(t.responsavel_id) ?? 0) + 1);
+    for (const extra of t.responsaveis_adicionais ?? []) {
+      cargaPorUsuario.set(extra, (cargaPorUsuario.get(extra) ?? 0) + 1);
+    }
+  }
+  const menorCarga = usuarios.length > 0 ? Math.min(...usuarios.map((u) => cargaPorUsuario.get(u._id) ?? 0)) : 0;
+  const sugeridoId = usuarios.find((u) => (cargaPorUsuario.get(u._id) ?? 0) === menorCarga)?._id;
   const editando = !!tarefa;
   const [form, setForm] = useState({
     titulo: tarefa?.titulo ?? '',
@@ -620,10 +634,20 @@ function TarefaModal({
                 <option value="">Sem responsável</option>
                 {usuarios.map((u) => (
                   <option key={u._id} value={u._id}>
-                    {u.nome}
+                    {u.nome} ({cargaPorUsuario.get(u._id) ?? 0} tarefa{(cargaPorUsuario.get(u._id) ?? 0) === 1 ? '' : 's'})
+                    {u._id === sugeridoId ? ' — menor carga' : ''}
                   </option>
                 ))}
               </select>
+              {!editando && sugeridoId && sugeridoId !== form.responsavel_id && (
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, responsavel_id: sugeridoId })}
+                  className="text-[11px] text-brand-600 dark:text-brand-400 hover:underline mt-1"
+                >
+                  Sugestão: {usuarios.find((u) => u._id === sugeridoId)?.nome} tem menos tarefas em aberto
+                </button>
+              )}
             </label>
 
             {usuarios.filter((u) => u._id !== form.responsavel_id).length > 0 && (
