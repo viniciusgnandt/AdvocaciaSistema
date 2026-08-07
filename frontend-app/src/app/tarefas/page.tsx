@@ -25,6 +25,7 @@ import {
   atualizarTarefa,
   criarTarefa,
   excluirTarefa,
+  listarProcessos,
   listarTarefas,
   listarUsuarios,
   usuarioLogado,
@@ -60,6 +61,7 @@ export default function TarefasPage() {
   const router = useRouter();
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [nomesProcessos, setNomesProcessos] = useState<Record<string, string>>({});
   const [visao, setVisao] = useState<'quadro' | 'lista'>('quadro');
   const [somenteMinhas, setSomenteMinhas] = useState(false);
   const [responsavelFiltro, setResponsavelFiltro] = useState('');
@@ -84,6 +86,20 @@ export default function TarefasPage() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    // busca leve, so pra exibir nome das partes em vez do numero CNJ cru nas tarefas
+    listarProcessos({})
+      .then((resposta) => {
+        const mapa: Record<string, string> = {};
+        for (const p of resposta.itens) {
+          if (p.parte_ativa && p.parte_passiva) mapa[p.numero_cnj] = `${p.parte_ativa} x ${p.parte_passiva}`;
+          else if (p.parte_ativa) mapa[p.numero_cnj] = p.parte_ativa;
+        }
+        setNomesProcessos(mapa);
+      })
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -302,9 +318,13 @@ export default function TarefasPage() {
                               e.stopPropagation();
                               router.push(`/processos?numero=${t.numero_processo}`);
                             }}
-                            className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 font-mono truncate"
+                            title={t.numero_processo}
+                            className={cn(
+                              'flex items-center gap-1 text-[11px] text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 truncate',
+                              !nomesProcessos[t.numero_processo] && 'font-mono',
+                            )}
                           >
-                            <Landmark size={10} className="shrink-0" /> {t.numero_processo}
+                            <Landmark size={10} className="shrink-0" /> {nomesProcessos[t.numero_processo] ?? t.numero_processo}
                           </p>
                         )}
 
@@ -372,8 +392,11 @@ export default function TarefasPage() {
                   <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-gray-400">
                     <span>{new Date(t.data_vencimento).toLocaleDateString('pt-BR')}</span>
                     {t.numero_processo && (
-                      <span className="flex items-center gap-1 font-mono">
-                        <Landmark size={10} /> {t.numero_processo}
+                      <span
+                        title={t.numero_processo}
+                        className={cn('flex items-center gap-1 max-w-[220px] truncate', !nomesProcessos[t.numero_processo] && 'font-mono')}
+                      >
+                        <Landmark size={10} className="shrink-0" /> {nomesProcessos[t.numero_processo] ?? t.numero_processo}
                       </span>
                     )}
                     {nomeResponsavel(t.responsavel_id) && <span>· {nomeResponsavel(t.responsavel_id)}</span>}
