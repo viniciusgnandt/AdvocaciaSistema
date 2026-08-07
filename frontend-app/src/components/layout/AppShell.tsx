@@ -8,6 +8,7 @@ import { Sidebar } from './Sidebar';
 import { MobileBottomNav } from './MobileBottomNav';
 import { AtalhosTeclado } from './AtalhosTeclado';
 import { OfflineBanner } from './OfflineBanner';
+import { Toaster } from '@/components/ui/Toaster';
 
 const ROTAS_PUBLICAS = ['/login', '/registro', '/status'];
 
@@ -65,6 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <AtalhosTeclado />
       <OfflineBanner />
+      <Toaster />
     </div>
   );
 }

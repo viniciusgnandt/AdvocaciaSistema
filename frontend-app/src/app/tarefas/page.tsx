@@ -36,6 +36,7 @@ import {
 import { cn } from '@/lib/cn';
 import { mascararCnjDigitando, validarCnj } from '@/lib/cnj';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { toast } from '@/lib/toast';
 
 const STATUS_LABEL: Record<string, string> = {
   pendente: 'Pendente',
@@ -144,8 +145,10 @@ export default function TarefasPage() {
     setTarefas((atual) => atual.filter((t) => t._id !== tarefa._id));
     try {
       await excluirTarefa(tarefa._id);
+      toast('Tarefa excluída');
     } catch {
       carregar();
+      toast('Erro ao excluir tarefa', 'erro');
     }
   };
 
@@ -553,6 +556,7 @@ function TarefaModal({
         });
       }
       onSalva();
+      toast(editando ? 'Tarefa atualizada' : 'Tarefa criada');
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'erro ao salvar tarefa');
     } finally {

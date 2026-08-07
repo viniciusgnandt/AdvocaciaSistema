@@ -53,6 +53,7 @@ import {
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { toast } from '@/lib/toast';
 import { ArquivosProcesso } from '@/components/processos/ArquivosProcesso';
 import HistoricoAmigavel from '@/components/common/HistoricoAmigavel';
 import NotasRapidas from '@/components/common/NotasRapidas';
@@ -158,6 +159,7 @@ function ClientesPageConteudo() {
     setModal(null);
     await carregar();
     setSelecionado(cliente);
+    toast(eraNovo ? 'Cliente cadastrado' : 'Cliente atualizado');
     if (eraNovo) setModalOnboarding(true);
   };
 
@@ -206,8 +208,11 @@ function ClientesPageConteudo() {
       await excluirCliente(selecionado._id);
       setSelecionado(null);
       await carregar();
+      toast('Cliente excluído');
     } catch (err) {
-      setErro(err instanceof Error ? err.message : 'erro ao excluir cliente');
+      const mensagem = err instanceof Error ? err.message : 'erro ao excluir cliente';
+      setErro(mensagem);
+      toast(mensagem, 'erro');
     }
   };
 
