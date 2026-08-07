@@ -15,6 +15,7 @@ import {
   criarLancamento,
   excluirLancamento,
   listarLancamentos,
+  listarProcessos,
   rejeitarDespesa,
   resumoFinanceiro,
   usuarioLogado,
@@ -65,6 +66,20 @@ export default function FinanceiroPage() {
   const [modalAberto, setModalAberto] = useState(false);
   const [simuladorAberto, setSimuladorAberto] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [nomesProcessos, setNomesProcessos] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    listarProcessos({})
+      .then((resposta) => {
+        const mapa: Record<string, string> = {};
+        for (const p of resposta.itens) {
+          if (p.parte_ativa && p.parte_passiva) mapa[p.numero_cnj] = `${p.parte_ativa} x ${p.parte_passiva}`;
+          else if (p.parte_ativa) mapa[p.numero_cnj] = p.parte_ativa;
+        }
+        setNomesProcessos(mapa);
+      })
+      .catch(() => undefined);
+  }, []);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -311,9 +326,13 @@ export default function FinanceiroPage() {
                           e.stopPropagation();
                           router.push(`/processos?numero=${l.numero_processo}`);
                         }}
-                        className="font-mono hover:text-brand-600 dark:hover:text-brand-400 hover:underline"
+                        title={l.numero_processo}
+                        className={cn(
+                          'max-w-[220px] truncate hover:text-brand-600 dark:hover:text-brand-400 hover:underline',
+                          !nomesProcessos[l.numero_processo] && 'font-mono',
+                        )}
                       >
-                        · {l.numero_processo}
+                        · {nomesProcessos[l.numero_processo] ?? l.numero_processo}
                       </button>
                     )}
                   </div>
