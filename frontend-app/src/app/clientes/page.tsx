@@ -311,11 +311,11 @@ function ClientesPageConteudo() {
                   key={c._id}
                   onClick={() => setSelecionado(c)}
                   className={cn(
-                    'rounded-xl border p-3 cursor-pointer transition-all',
+                    'rounded-xl border p-3 cursor-pointer transition-all duration-150',
                     c.status === 'inativo' && 'opacity-60',
                     selecionado?._id === c._id
                       ? 'border-brand-400 dark:border-brand-700 bg-brand-50/50 dark:bg-brand-900/10'
-                      : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-700',
+                      : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-700 hover:shadow-md hover:shadow-gray-200/60 dark:hover:shadow-black/20 hover:-translate-y-0.5',
                   )}
                 >
                   <div className="flex items-center gap-2.5">

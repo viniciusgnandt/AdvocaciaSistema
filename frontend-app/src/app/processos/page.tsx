@@ -305,12 +305,12 @@ function ProcessosPageConteudo() {
                     setSelecionado(p);
                   }}
                   className={cn(
-                    'rounded-xl border p-3 cursor-pointer transition-all',
+                    'rounded-xl border p-3 cursor-pointer transition-all duration-150',
                     comparando && selecionadosComparar.has(p.numero_cnj)
                       ? 'border-brand-400 dark:border-brand-700 bg-brand-50/50 dark:bg-brand-900/10'
                       : !comparando && selecionado?._id === p._id
                         ? 'border-brand-400 dark:border-brand-700 bg-brand-50/50 dark:bg-brand-900/10'
-                        : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-700',
+                        : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-700 hover:shadow-md hover:shadow-gray-200/60 dark:hover:shadow-black/20 hover:-translate-y-0.5',
                   )}
                 >
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate flex items-center gap-1.5">
