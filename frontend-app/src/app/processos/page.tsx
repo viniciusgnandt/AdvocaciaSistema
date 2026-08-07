@@ -4,8 +4,10 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   AlertCircle,
+  Baby,
   Bookmark,
   BookmarkPlus,
+  Briefcase,
   Building2,
   Calendar,
   CalendarClock,
@@ -16,6 +18,7 @@ import {
   Gavel,
   History as HistoryIcon,
   Landmark,
+  Leaf,
   Paperclip,
   Pencil,
   Presentation,
@@ -90,6 +93,21 @@ function idadeProcesso(processo: Processo): string | null {
   const anos = Math.floor(dias / 365);
   const mesesRestantes = Math.floor((dias % 365) / 30);
   return mesesRestantes > 0 ? `${anos}a ${mesesRestantes}m` : `${anos}a`;
+}
+
+function areaDireito(processo: Processo): { icone: typeof Scale; label: string } {
+  const tribunal = processo.tribunal ?? '';
+  const classe = (processo.classe ?? '').toLowerCase();
+
+  if (classe.includes('trabalhist') || tribunal.startsWith('TRT')) return { icone: Briefcase, label: 'Trabalhista' };
+  if (classe.includes('família') || classe.includes('familia') || classe.includes('alimentos') || classe.includes('divórcio') || classe.includes('divorcio')) {
+    return { icone: Baby, label: 'Família' };
+  }
+  if (classe.includes('ambiental')) return { icone: Leaf, label: 'Ambiental' };
+  if (tribunal.startsWith('TRF') || classe.includes('previdenciári') || classe.includes('previdenciari')) {
+    return { icone: Landmark, label: 'Federal/Previdenciário' };
+  }
+  return { icone: Scale, label: 'Cível' };
 }
 
 function tituloPartes(processo: Processo) {
@@ -319,7 +337,16 @@ function ProcessosPageConteudo() {
                   )}
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{p.classe ?? 'Classe não identificada'}</p>
                   <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-400 dark:text-gray-500">
-                    <Landmark size={11} /> {p.tribunal ?? '—'}
+                    {(() => {
+                      const area = areaDireito(p);
+                      const Icone = area.icone;
+                      return (
+                        <span className="shrink-0 inline-flex" title={area.label}>
+                          <Icone size={11} />
+                        </span>
+                      );
+                    })()}
+                    {p.tribunal ?? '—'}
                     {p.orgao_julgador && <span className="truncate">· {p.orgao_julgador}</span>}
                     {idadeProcesso(p) && (
                       <span className="shrink-0 ml-auto flex items-center gap-1" title="Tempo desde o ajuizamento">
