@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   Building2,
   Check,
+  Clock,
   Download,
   Info,
   KeyRound,
@@ -634,44 +635,54 @@ function ExportarDadosCartao() {
   );
 }
 
+type ModoTema = 'light' | 'dark' | 'auto';
+
+function ehHorarioNoturno() {
+  const hora = new Date().getHours();
+  return hora >= 19 || hora < 7;
+}
+
 function AparenciaSecao() {
-  const [dark, setDark] = useState(false);
+  const [modo, setModo] = useState<ModoTema>('light');
 
   useEffect(() => {
-    setDark(localStorage.getItem('trilva-theme') === 'dark');
+    const salvo = localStorage.getItem('trilva-theme');
+    setModo(salvo === 'dark' || salvo === 'auto' ? salvo : 'light');
   }, []);
 
-  const escolher = (modo: 'light' | 'dark') => {
-    const isDark = modo === 'dark';
-    setDark(isDark);
-    document.documentElement.classList.toggle('dark', isDark);
-    localStorage.setItem('trilva-theme', modo);
+  const escolher = (novoModo: ModoTema) => {
+    setModo(novoModo);
+    const escuro = novoModo === 'dark' || (novoModo === 'auto' && ehHorarioNoturno());
+    document.documentElement.classList.toggle('dark', escuro);
+    localStorage.setItem('trilva-theme', novoModo);
   };
 
+  const opcoes: { valor: ModoTema; label: string; icone: typeof Sun }[] = [
+    { valor: 'light', label: 'Claro', icone: Sun },
+    { valor: 'dark', label: 'Escuro', icone: Moon },
+    { valor: 'auto', label: 'Automático', icone: Clock },
+  ];
+
   return (
-    <Cartao titulo="Tema" subtitulo="Escolha entre claro e escuro">
-      <div className="grid grid-cols-2 gap-3 max-w-sm">
-        <button
-          onClick={() => escolher('light')}
-          className={cn(
-            'flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-colors',
-            !dark ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-gray-200 dark:border-gray-800',
-          )}
-        >
-          <Sun size={20} className={!dark ? 'text-brand-600' : 'text-gray-400'} />
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Claro</span>
-        </button>
-        <button
-          onClick={() => escolher('dark')}
-          className={cn(
-            'flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-colors',
-            dark ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-gray-200 dark:border-gray-800',
-          )}
-        >
-          <Moon size={20} className={dark ? 'text-brand-600' : 'text-gray-400'} />
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Escuro</span>
-        </button>
+    <Cartao titulo="Tema" subtitulo="Escolha entre claro, escuro ou automático por horário">
+      <div className="grid grid-cols-3 gap-3 max-w-md">
+        {opcoes.map(({ valor, label, icone: Icone }) => (
+          <button
+            key={valor}
+            onClick={() => escolher(valor)}
+            className={cn(
+              'flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-colors',
+              modo === valor ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-gray-200 dark:border-gray-800',
+            )}
+          >
+            <Icone size={20} className={modo === valor ? 'text-brand-600' : 'text-gray-400'} />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</span>
+          </button>
+        ))}
       </div>
+      {modo === 'auto' && (
+        <p className="text-xs text-gray-400 mt-3">Fica escuro automaticamente das 19h às 7h.</p>
+      )}
     </Cartao>
   );
 }
