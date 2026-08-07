@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Bell, CalendarClock, CheckSquare, Gavel } from 'lucide-react';
-import { listarDocumentosVencendo, listarPublicacoes, listarProcessos, listarTarefas, type Publicacao, type Tarefa } from '@/lib/api';
+import { listarClientes, listarDocumentosVencendo, listarPublicacoes, listarProcessos, listarTarefas, type Publicacao, type Tarefa } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
 type Notificacao = {
@@ -18,12 +18,18 @@ type Notificacao = {
 const DIAS_PROCESSO_ESQUECIDO = 60;
 
 async function carregarNotificacoes(): Promise<Notificacao[]> {
-  const [publicacoesResp, tarefas, processosResp, documentosVencendo] = await Promise.all([
+  const [publicacoesResp, tarefas, processosResp, documentosVencendo, clientes] = await Promise.all([
     listarPublicacoes({ status: 'nao_lida', urgencia: 'critica', limite: 8 }),
     listarTarefas({ atrasadas: true }),
     listarProcessos({ status: 'ativo' }),
     listarDocumentosVencendo(30).catch(() => []),
+    listarClientes().catch(() => []),
   ]);
+
+  const nomeClientePorId = new Map(clientes.map((c) => [c._id, c.nome]));
+  const nomeClientePorProcesso = new Map(
+    processosResp.itens.filter((p) => p.cliente_id).map((p) => [p.numero_cnj, nomeClientePorId.get(p.cliente_id!)]),
+  );
 
   const doPublicacoes: Notificacao[] = publicacoesResp.itens.map((p: Publicacao) => ({
     id: `pub-${p._id}`,
@@ -34,14 +40,18 @@ async function carregarNotificacoes(): Promise<Notificacao[]> {
     critica: true,
   }));
 
-  const doTarefas: Notificacao[] = tarefas.slice(0, 8).map((t: Tarefa) => ({
-    id: `tar-${t._id}`,
-    tipo: 'tarefa',
-    titulo: t.titulo,
-    subtitulo: `Venceu em ${new Date(t.data_vencimento).toLocaleDateString('pt-BR')}`,
-    destino: '/tarefas',
-    critica: false,
-  }));
+  const doTarefas: Notificacao[] = tarefas.slice(0, 8).map((t: Tarefa) => {
+    const cliente = t.numero_processo ? nomeClientePorProcesso.get(t.numero_processo) : undefined;
+    const venceu = `Venceu em ${new Date(t.data_vencimento).toLocaleDateString('pt-BR')}`;
+    return {
+      id: `tar-${t._id}`,
+      tipo: 'tarefa',
+      titulo: t.titulo,
+      subtitulo: cliente ? `${venceu} · ${cliente}` : venceu,
+      destino: '/tarefas',
+      critica: false,
+    };
+  });
 
   const agora = Date.now();
   const doProcessosEsquecidos: Notificacao[] = processosResp.itens
