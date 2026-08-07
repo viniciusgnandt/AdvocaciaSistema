@@ -18,6 +18,7 @@ import { HealthModule } from './modules/health/health.module';
 import { MetasModule } from './modules/metas/metas.module';
 import { ChecklistsModule } from './modules/checklists/checklists.module';
 import { NotasModule } from './modules/notas/notas.module';
+import { DecisoesModule } from './modules/decisoes/decisoes.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { NotasModule } from './modules/notas/notas.module';
     MetasModule,
     ChecklistsModule,
     NotasModule,
+    DecisoesModule,
   ],
 })
 export class AppModule {}

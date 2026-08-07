@@ -6,6 +6,7 @@ import {
   Check,
   Clock,
   Download,
+  Gavel,
   Info,
   KeyRound,
   ListChecks,
@@ -20,6 +21,7 @@ import {
 import { Topbar } from '@/components/layout/Topbar';
 import { EquipeAba } from '@/components/configuracoes/EquipeAba';
 import { ChecklistsAba } from '@/components/configuracoes/ChecklistsAba';
+import { DecisoesAba } from '@/components/configuracoes/DecisoesAba';
 import { OabsMonitoradasCartao } from '@/components/configuracoes/OabsMonitoradasCartao';
 import {
   alterarSenha,
@@ -40,7 +42,7 @@ import {
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
-type SecaoConfig = 'conta' | 'escritorio' | 'equipe' | 'checklists' | 'auditoria' | 'aparencia' | 'sobre';
+type SecaoConfig = 'conta' | 'escritorio' | 'equipe' | 'checklists' | 'decisoes' | 'auditoria' | 'aparencia' | 'sobre';
 
 const LABEL_PERFIL: Record<PerfilUsuario, string> = { admin: 'Admin', advogado: 'Advogado(a)', assistente: 'Assistente' };
 
@@ -54,6 +56,7 @@ export default function ConfiguracoesPage() {
     { id: 'escritorio', icon: Building2, label: 'Escritório', adminOnly: true },
     { id: 'equipe', icon: UsersIcon, label: 'Equipe', adminOnly: true },
     { id: 'checklists', icon: ListChecks, label: 'Checklists', adminOnly: true },
+    { id: 'decisoes', icon: Gavel, label: 'Aprovações', adminOnly: false },
     { id: 'auditoria', icon: ShieldCheck, label: 'Auditoria', adminOnly: true },
     { id: 'aparencia', icon: Palette, label: 'Aparência', adminOnly: false },
     { id: 'sobre', icon: Info, label: 'Sobre', adminOnly: false },
@@ -91,6 +94,7 @@ export default function ConfiguracoesPage() {
             {secao === 'escritorio' && ehAdmin && <EscritorioSecao />}
             {secao === 'equipe' && ehAdmin && <EquipeAba />}
             {secao === 'checklists' && ehAdmin && <ChecklistsAba />}
+            {secao === 'decisoes' && <DecisoesAba />}
             {secao === 'auditoria' && ehAdmin && <AuditoriaSecao />}
             {secao === 'aparencia' && <AparenciaSecao />}
             {secao === 'sobre' && <SobreSecao />}

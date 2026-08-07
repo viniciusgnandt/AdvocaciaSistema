@@ -1092,3 +1092,38 @@ export function atualizarTerceirizacao(id: string, dto: Partial<Pick<Terceirizac
 export function excluirTerceirizacao(id: string) {
   return request<{ ok: boolean }>(`/terceirizacoes/${id}`, { method: 'DELETE' });
 }
+
+export type StatusDecisao = 'pendente' | 'aprovada' | 'rejeitada';
+
+export type Decisao = {
+  _id: string;
+  titulo: string;
+  descricao?: string;
+  numero_processo?: string;
+  cliente_id?: string;
+  solicitado_por: string;
+  solicitado_por_nome: string;
+  status: StatusDecisao;
+  decidido_por?: string;
+  decidido_por_nome?: string;
+  decidido_em?: string;
+  nota_decisao?: string;
+  created_at: string;
+};
+
+export function listarDecisoes(status?: StatusDecisao) {
+  const query = status ? `?status=${status}` : '';
+  return request<Decisao[]>(`/decisoes${query}`);
+}
+
+export function criarDecisao(dto: { titulo: string; descricao?: string; numero_processo?: string; cliente_id?: string }) {
+  return request<Decisao>('/decisoes', { method: 'POST', body: JSON.stringify(dto) });
+}
+
+export function aprovarDecisao(id: string, nota?: string) {
+  return request<Decisao>(`/decisoes/${id}/aprovar`, { method: 'PATCH', body: JSON.stringify({ nota }) });
+}
+
+export function rejeitarDecisao(id: string, nota?: string) {
+  return request<Decisao>(`/decisoes/${id}/rejeitar`, { method: 'PATCH', body: JSON.stringify({ nota }) });
+}
