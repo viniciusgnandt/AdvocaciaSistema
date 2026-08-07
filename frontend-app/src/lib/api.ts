@@ -1147,15 +1147,32 @@ export function rejeitarDecisao(id: string, nota?: string) {
   return request<Decisao>(`/decisoes/${id}/rejeitar`, { method: 'PATCH', body: JSON.stringify({ nota }) });
 }
 
-export function gerarDocumentoIa(dto: {
+export async function gerarDocumentoIa(dto: {
   tipo_documento: string;
   instrucoes: string;
   processo_id?: string;
   cliente_id?: string;
-}) {
-  return request<{ texto: string }>('/ia/gerar-documento', { method: 'POST', body: JSON.stringify(dto) });
+  buscar_jurisprudencia?: boolean;
+  modelo?: File;
+}): Promise<{ texto: string }> {
+  const form = new FormData();
+  form.append('tipo_documento', dto.tipo_documento);
+  form.append('instrucoes', dto.instrucoes);
+  if (dto.processo_id) form.append('processo_id', dto.processo_id);
+  if (dto.cliente_id) form.append('cliente_id', dto.cliente_id);
+  if (dto.buscar_jurisprudencia) form.append('buscar_jurisprudencia', 'true');
+  if (dto.modelo) form.append('modelo', dto.modelo);
+
+  const token = getToken();
+  const res = await fetch(`${API_URL}/ia/gerar-documento`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: form,
+  });
+  if (!res.ok) throw new Error(`Falha ao gerar documento (${res.status})`);
+  return res.json();
 }
 
-export function perguntarCopilotoIa(dto: { pergunta: string; processo_id?: string }) {
+export function perguntarCopilotoIa(dto: { pergunta: string; processo_id?: string; buscar_jurisprudencia?: boolean }) {
   return request<{ resposta: string }>('/ia/copiloto', { method: 'POST', body: JSON.stringify(dto) });
 }

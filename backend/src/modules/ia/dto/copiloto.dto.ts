@@ -1,4 +1,4 @@
-import { IsMongoId, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsMongoId, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CopilotoDto {
   @IsOptional()
@@ -8,4 +8,8 @@ export class CopilotoDto {
   @IsString()
   @MinLength(3)
   pergunta: string;
+
+  @IsOptional()
+  @IsBoolean()
+  buscar_jurisprudencia?: boolean;
 }

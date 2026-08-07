@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Sparkles, X, Copy, Check } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Sparkles, X, Copy, Check, Paperclip, Scale } from 'lucide-react';
 import { gerarDocumentoIa, perguntarCopilotoIa } from '@/lib/api';
 import { toast } from '@/lib/toast';
 
@@ -19,10 +19,14 @@ export function CopilotoIaModal({ processoId, onFechar }: { processoId?: string;
 
   const [pergunta, setPergunta] = useState('');
   const [respostaCopiloto, setRespostaCopiloto] = useState('');
+  const [buscarJurisCopiloto, setBuscarJurisCopiloto] = useState(false);
 
   const [tipoDocumento, setTipoDocumento] = useState(TIPOS_DOCUMENTO[0]);
   const [instrucoes, setInstrucoes] = useState('');
   const [textoDocumento, setTextoDocumento] = useState('');
+  const [buscarJurisDocumento, setBuscarJurisDocumento] = useState(false);
+  const [modelo, setModelo] = useState<File | null>(null);
+  const inputModeloRef = useRef<HTMLInputElement>(null);
 
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -33,7 +37,11 @@ export function CopilotoIaModal({ processoId, onFechar }: { processoId?: string;
     setCarregando(true);
     setErro(null);
     try {
-      const { resposta } = await perguntarCopilotoIa({ pergunta, processo_id: processoId });
+      const { resposta } = await perguntarCopilotoIa({
+        pergunta,
+        processo_id: processoId,
+        buscar_jurisprudencia: buscarJurisCopiloto,
+      });
       setRespostaCopiloto(resposta);
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Erro ao consultar a IA');
@@ -47,7 +55,13 @@ export function CopilotoIaModal({ processoId, onFechar }: { processoId?: string;
     setCarregando(true);
     setErro(null);
     try {
-      const { texto } = await gerarDocumentoIa({ tipo_documento: tipoDocumento, instrucoes, processo_id: processoId });
+      const { texto } = await gerarDocumentoIa({
+        tipo_documento: tipoDocumento,
+        instrucoes,
+        processo_id: processoId,
+        buscar_jurisprudencia: buscarJurisDocumento,
+        modelo: modelo ?? undefined,
+      });
       setTextoDocumento(texto);
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Erro ao gerar documento');
@@ -101,18 +115,29 @@ export function CopilotoIaModal({ processoId, onFechar }: { processoId?: string;
 
         <div className="px-5 py-4 space-y-3 overflow-y-auto">
           {modo === 'copiloto' ? (
-            <label className="block">
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">
-                Pergunta {processoId ? '(com contexto deste processo)' : ''}
-              </span>
-              <textarea
-                value={pergunta}
-                onChange={(e) => setPergunta(e.target.value)}
-                rows={3}
-                placeholder="Ex.: Resuma o andamento deste processo e sugira os próximos passos."
-                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
-              />
-            </label>
+            <>
+              <label className="block">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">
+                  Pergunta {processoId ? '(com contexto deste processo)' : ''}
+                </span>
+                <textarea
+                  value={pergunta}
+                  onChange={(e) => setPergunta(e.target.value)}
+                  rows={3}
+                  placeholder="Ex.: Resuma o andamento deste processo e sugira os próximos passos."
+                  className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
+                />
+              </label>
+              <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={buscarJurisCopiloto}
+                  onChange={(e) => setBuscarJurisCopiloto(e.target.checked)}
+                  className="rounded border-gray-300 dark:border-gray-700"
+                />
+                <Scale size={13} className="text-gray-400" /> Buscar jurisprudência na web (STJ, STF, TJs, TRTs)
+              </label>
+            </>
           ) : (
             <>
               <label className="block">
@@ -140,6 +165,54 @@ export function CopilotoIaModal({ processoId, onFechar }: { processoId?: string;
                   placeholder="Ex.: Notificar o cliente sobre atraso no pagamento de honorários, tom formal, 3 parágrafos."
                   className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100"
                 />
+              </label>
+
+              <div>
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">
+                  Modelo de referência (opcional)
+                </span>
+                <input
+                  ref={inputModeloRef}
+                  type="file"
+                  accept=".docx,.pdf,.txt"
+                  className="hidden"
+                  onChange={(e) => setModelo(e.target.files?.[0] ?? null)}
+                />
+                {modelo ? (
+                  <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1.5">
+                    <Paperclip size={13} className="text-gray-400 shrink-0" />
+                    <span className="truncate flex-1">{modelo.name}</span>
+                    <button
+                      onClick={() => {
+                        setModelo(null);
+                        if (inputModeloRef.current) inputModeloRef.current.value = '';
+                      }}
+                      className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 shrink-0"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => inputModeloRef.current?.click()}
+                    className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5 w-full justify-center"
+                  >
+                    <Paperclip size={13} /> Anexar modelo (.docx, .pdf ou .txt)
+                  </button>
+                )}
+                <p className="text-[11px] text-gray-400 mt-1">
+                  A IA segue a estrutura e o estilo do modelo enviado, adaptando o conteúdo ao caso.
+                </p>
+              </div>
+
+              <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={buscarJurisDocumento}
+                  onChange={(e) => setBuscarJurisDocumento(e.target.checked)}
+                  className="rounded border-gray-300 dark:border-gray-700"
+                />
+                <Scale size={13} className="text-gray-400" /> Buscar jurisprudência na web (STJ, STF, TJs, TRTs)
               </label>
             </>
           )}
