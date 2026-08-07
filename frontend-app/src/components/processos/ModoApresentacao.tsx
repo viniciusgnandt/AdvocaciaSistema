@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Building2, Calendar, DollarSign, Landmark, Presentation, Scale, X } from 'lucide-react';
-import { type Processo } from '@/lib/api';
+import { buscarTenant, type Processo } from '@/lib/api';
 
 function formatarMoeda(valor?: number | null) {
   if (valor === undefined || valor === null) return null;
@@ -27,6 +27,8 @@ export function ModoApresentacao({
   numeroFormatado: string;
   onFechar: () => void;
 }) {
+  const [escritorio, setEscritorio] = useState<{ nome_escritorio: string; logo_url?: string } | null>(null);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onFechar();
@@ -38,6 +40,12 @@ export function ModoApresentacao({
       document.body.style.overflow = '';
     };
   }, [onFechar]);
+
+  useEffect(() => {
+    buscarTenant()
+      .then(setEscritorio)
+      .catch(() => undefined);
+  }, []);
 
   const movimentacoesRecentes = [...processo.movimentacoes]
     .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
@@ -53,9 +61,20 @@ export function ModoApresentacao({
           <X size={15} /> Fechar (Esc)
         </button>
 
-        <div className="flex items-center gap-2 text-brand-600 dark:text-brand-400 mb-6 print:hidden">
-          <Presentation size={16} />
-          <span className="text-xs font-semibold uppercase tracking-wider">Modo apresentação</span>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2 text-brand-600 dark:text-brand-400 print:hidden">
+            <Presentation size={16} />
+            <span className="text-xs font-semibold uppercase tracking-wider">Modo apresentação</span>
+          </div>
+          {escritorio && (
+            <div className="flex items-center gap-2">
+              {escritorio.logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={escritorio.logo_url} alt={escritorio.nome_escritorio} className="h-7 w-auto object-contain" />
+              ) : null}
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{escritorio.nome_escritorio}</span>
+            </div>
+          )}
         </div>
 
         <h1 className="text-3xl sm:text-4xl font-semibold text-gray-900 dark:text-gray-100 text-balance">{titulo}</h1>
