@@ -301,21 +301,28 @@ function ClientesPageConteudo() {
                       : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-700',
                   )}
                 >
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate flex items-center gap-1.5">
-                    <span className="truncate flex-1">{c.nome}</span>
-                    {c.vip && <Crown size={13} className="text-amber-500 shrink-0" fill="currentColor" />}
-                    {c.status === 'inativo' && (
-                      <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                        inativo
-                      </span>
-                    )}
-                    <BotaoFavorito favorito={ehFavorito('cliente', c._id)} onClick={() => alternar('cliente', c._id)} />
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                    {c.tipo === 'pf' ? 'Pessoa física' : 'Pessoa jurídica'}
-                    {c.cpf && ` · ${c.cpf}`}
-                    {c.cnpj && ` · ${c.cnpj}`}
-                  </p>
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-full bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 text-xs font-semibold flex items-center justify-center shrink-0">
+                      {c.nome.charAt(0).toUpperCase()}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate flex items-center gap-1.5">
+                        <span className="truncate flex-1">{c.nome}</span>
+                        {c.vip && <Crown size={13} className="text-amber-500 shrink-0" fill="currentColor" />}
+                        {c.status === 'inativo' && (
+                          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                            inativo
+                          </span>
+                        )}
+                        <BotaoFavorito favorito={ehFavorito('cliente', c._id)} onClick={() => alternar('cliente', c._id)} />
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                        {c.tipo === 'pf' ? 'Pessoa física' : 'Pessoa jurídica'}
+                        {c.cpf && ` · ${c.cpf}`}
+                        {c.cnpj && ` · ${c.cnpj}`}
+                      </p>
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>
